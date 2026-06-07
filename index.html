@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>台球练习原型</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="table-wrap" aria-label="球台俯视图">
+        <canvas id="tableCanvas" width="900" height="500"></canvas>
+        <div class="table-title">
+          <strong id="cutLabel">角度球</strong>
+          <span id="aimHint">白球中心对准虚线假想球中心</span>
+        </div>
+        <div class="table-note" id="tableNote">拖动白球或目标球，点击袋口切换目标袋。</div>
+
+        <div class="tool-strip top-tools" aria-label="模式">
+          <button class="tool-btn active" data-mode="aim" title="瞄准模式" aria-label="瞄准模式">◎</button>
+          <button class="tool-btn" data-mode="angle" title="分离角模式" aria-label="分离角模式">∠</button>
+          <button class="tool-btn" data-mode="escape" title="解球模式" aria-label="解球模式">⌖</button>
+        </div>
+
+        <div class="tool-strip left-tools" aria-label="练习工具">
+          <button class="tool-btn" id="resetBtn" title="重置球位" aria-label="重置球位">↺</button>
+          <button class="tool-btn" id="openAimViewBtn" title="正视瞄准视图" aria-label="正视瞄准视图">◉</button>
+          <button class="tool-btn" id="newDrillBtn" title="切换关卡" aria-label="切换关卡">▦</button>
+          <button class="tool-btn" id="gameToggleBtn" title="中式八球 / 九球" aria-label="中式八球 / 九球">⑨</button>
+        </div>
+
+        <div class="tool-strip right-tools" aria-label="击球参数">
+          <button class="tool-btn" id="spinCycleBtn" title="切换杆法" aria-label="切换杆法">↧</button>
+          <button class="tool-btn" id="powerCycleBtn" title="切换力度" aria-label="切换力度">▰</button>
+          <button class="tool-btn" id="sideCycleBtn" title="切换左右塞" aria-label="切换左右塞">↔</button>
+          <button class="tool-btn" id="playBtn" title="击打回放" aria-label="击打回放">▶</button>
+        </div>
+
+        <div class="tool-strip bottom-tools" aria-label="解球工具">
+          <button class="tool-btn" id="railCycleBtn" title="切换库数" aria-label="切换库数">◇</button>
+          <button class="tool-btn" id="blockersBtn" title="显示/隐藏障碍球" aria-label="显示/隐藏障碍球">●</button>
+          <button class="tool-btn" id="photoBtn" title="照片标点原型" aria-label="照片标点原型">▣</button>
+        </div>
+      </section>
+
+      <section class="hidden-controls" aria-hidden="true">
+        <div class="mode-tabs">
+          <button class="tab active" data-mode="aim">瞄准</button>
+          <button class="tab" data-mode="angle">分离角</button>
+          <button class="tab" data-mode="escape">解球</button>
+        </div>
+        <div class="control-row">
+          <label>
+            球类
+            <select id="gameType">
+              <option value="chinese8">中式八球</option>
+              <option value="nineball">九球</option>
+            </select>
+          </label>
+          <label>
+            关卡
+            <select id="drillSelect">
+              <option value="free">自由摆放</option>
+              <option value="thin">薄球进攻</option>
+              <option value="half">半球瞄准</option>
+              <option value="thick">厚球练习</option>
+              <option value="long">长台角度</option>
+            </select>
+          </label>
+        </div>
+        <div class="segmented" id="spinButtons" aria-label="杆法">
+          <button class="active" data-spin="follow">高杆</button>
+          <button data-spin="stun">中杆</button>
+          <button data-spin="draw">低杆</button>
+        </div>
+        <div class="control-row three">
+          <label>
+            力度
+            <input id="powerSlider" type="range" min="1" max="10" value="6" />
+          </label>
+          <label>
+            左右塞
+            <input id="sideSlider" type="range" min="-5" max="5" value="0" />
+          </label>
+          <label>
+            台速
+            <select id="clothSpeed">
+              <option value="slow">慢</option>
+              <option value="medium" selected>中</option>
+              <option value="fast">快</option>
+            </select>
+          </label>
+        </div>
+        <div class="control-row">
+          <label>
+            解球方式
+            <select id="railCount">
+              <option value="1">一库</option>
+              <option value="2">两库</option>
+              <option value="3">三库</option>
+            </select>
+          </label>
+          <label class="switch-label">
+            <input id="showBlockers" type="checkbox" checked />
+            障碍球
+          </label>
+        </div>
+      </section>
+
+      <section class="aim-modal" id="aimModal" aria-hidden="true">
+        <div class="aim-sheet" role="dialog" aria-modal="true" aria-labelledby="aimModalTitle">
+          <div class="aim-sheet-head">
+            <div>
+              <p class="eyebrow">正视瞄准</p>
+              <h2 id="aimModalTitle">白球与目标球重合关系</h2>
+            </div>
+            <button class="icon-button" id="closeAimViewBtn" title="关闭" aria-label="关闭">×</button>
+          </div>
+          <div class="aim-stage front-view">
+            <canvas id="aimDiagramCanvas" width="720" height="460"></canvas>
+          </div>
+          <label class="thickness-control">
+            <span>0颗球</span>
+            <input id="overlapSlider" type="range" min="0" max="100" value="50" title="同步当前俯视图厚薄" />
+            <span>1颗球</span>
+          </label>
+          <p class="aim-caption">A 是进袋线与目标球边缘的接触点，B 是正视图中目标球最边点，C 是以 A 为中心镜像 B 得到的假想球边点。</p>
+        </div>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
