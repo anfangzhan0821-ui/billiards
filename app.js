@@ -203,6 +203,16 @@ function simulateCueAfterCollision() {
   });
 }
 
+function pocketCenterFor(point) {
+  if (!point) return null;
+  if (Number.isInteger(point.pocketIndex) && pockets[point.pocketIndex]) {
+    return pockets[point.pocketIndex];
+  }
+  return pockets.reduce((closest, pocket) => (
+    len(v(point, pocket)) < len(v(point, closest)) ? pocket : closest
+  ), pockets[0]);
+}
+
 function createObjectBallPath(data) {
   const startRoll = state.balls.target.rollAngle || 0;
   const points = [{ ...state.balls.target, t: 0, speed: 0, rollAngle: startRoll }];
@@ -247,6 +257,7 @@ function createShotAnimation() {
   const cuePocket = cueAfterTimed.find((point) => point.pocketed);
   const cuePocketIndex = cueAfterTimed.findIndex((point) => point.pocketed);
   const cuePocketEntry = cuePocketIndex > 0 ? norm(v(cueAfterTimed[cuePocketIndex - 1], cuePocket)) : data.cueToGhost;
+  const cuePocketCenter = pocketCenterFor(cuePocket);
   const cueScratched = Boolean(cuePocket);
   const cuePocketTime = cuePocket ? cuePocket.t : Infinity;
   const cueEnd = cueAfterTimed[cueAfterTimed.length - 1];
@@ -270,7 +281,12 @@ function createShotAnimation() {
     targetPocketTime,
     cueEnd,
     cuePocket: cuePocket
-      ? { ...cuePocket, pocketAngle: Math.atan2(-cuePocketEntry.y, -cuePocketEntry.x) }
+      ? {
+        ...cuePocketCenter,
+        rollAngle: cuePocket.rollAngle,
+        pocketIndex: cuePocket.pocketIndex,
+        pocketAngle: Math.atan2(-cuePocketEntry.y, -cuePocketEntry.x),
+      }
       : cuePocket,
     cuePocketTime,
     cueScratched,
