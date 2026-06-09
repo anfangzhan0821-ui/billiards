@@ -1,0 +1,215 @@
+/*
+ * GPL prototype physics module.
+ *
+ * This file is intentionally isolated. The model follows billiards physics
+ * concepts used by GPL-3.0 projects such as tailuge/billiards: cue strike
+ * offset -> angular velocity, sliding friction, rolling/spin-down friction,
+ * ball collision and cushion energy loss. It is not a full port yet, but it is
+ * the seam for replacing the lightweight path model with a professional engine.
+ */
+(function () {
+  const EPS = 1e-6;
+
+  function v(a, b) {
+    return { x: b.x - a.x, y: b.y - a.y };
+  }
+
+  function add(a, b) {
+    return { x: a.x + b.x, y: a.y + b.y };
+  }
+
+  function mul(a, n) {
+    return { x: a.x * n, y: a.y * n };
+  }
+
+  function dot(a, b) {
+    return a.x * b.x + a.y * b.y;
+  }
+
+  function len(a) {
+    return Math.hypot(a.x, a.y);
+  }
+
+  function norm(a) {
+    const l = len(a) || 1;
+    return { x: a.x / l, y: a.y / l };
+  }
+
+  function perp(a) {
+    return { x: -a.y, y: a.x };
+  }
+
+  function inPocketLane(p, pocket, table, radius) {
+    const minX = table.x + radius;
+    const maxX = table.x + table.w - radius;
+    const minY = table.y + radius;
+    const maxY = table.y + table.h - radius;
+    const lane = radius * 2.15;
+    const cornerLane = radius * 2.35;
+    const isSidePocket = Math.abs(pocket.x - (table.x + table.w / 2)) < 0.5;
+
+    if (isSidePocket) {
+      const outsideTop = pocket.y === table.y && p.y < minY;
+      const outsideBottom = pocket.y === table.y + table.h && p.y > maxY;
+      return Math.abs(p.x - pocket.x) <= lane && (outsideTop || outsideBottom);
+    }
+
+    const outsideX = pocket.x === table.x ? p.x < minX : p.x > maxX;
+    const outsideY = pocket.y === table.y ? p.y < minY : p.y > maxY;
+    return outsideX && outsideY && Math.abs(p.x - pocket.x) <= cornerLane && Math.abs(p.y - pocket.y) <= cornerLane;
+  }
+
+  function axisHasPocketLane(p, pockets, table, radius, axis) {
+    if (!Array.isArray(pockets)) return false;
+    return pockets.some((pocket) => {
+      if (!inPocketLane(p, pocket, table, radius)) return false;
+      if (axis === "y") return pocket.y === table.y || pocket.y === table.y + table.h;
+      return pocket.x === table.x || pocket.x === table.x + table.w;
+    });
+  }
+
+  function clampTable(p, vel, rollVel, table, radius, pockets) {
+    let bounced = false;
+    const minX = table.x + radius;
+    const maxX = table.x + table.w - radius;
+    const minY = table.y + radius;
+    const maxY = table.y + table.h - radius;
+    if ((p.x < minX || p.x > maxX) && !axisHasPocketLane(p, pockets, table, radius, "x")) {
+      p.x = Math.max(minX, Math.min(maxX, p.x));
+      vel.x *= -0.74;
+      vel.y *= 0.86;
+      rollVel.x *= -0.58;
+      bounced = true;
+    }
+    if ((p.y < minY || p.y > maxY) && !axisHasPocketLane(p, pockets, table, radius, "y")) {
+      p.y = Math.max(minY, Math.min(maxY, p.y));
+      vel.y *= -0.74;
+      vel.x *= 0.86;
+      rollVel.y *= -0.58;
+      bounced = true;
+    }
+    return bounced;
+  }
+
+  function distanceToSegment(p, a, b) {
+    const ab = v(a, b);
+    const abLen2 = dot(ab, ab);
+    if (abLen2 < EPS) return len(v(a, p));
+    const t = Math.max(0, Math.min(1, dot(v(a, p), ab) / abLen2));
+    return len(v(add(a, mul(ab, t)), p));
+  }
+
+  function pocketHit(prev, p, pockets, radius) {
+    if (!Array.isArray(pockets)) return null;
+    const threshold = radius * 0.82;
+    for (let i = 0; i < pockets.length; i++) {
+      if (distanceToSegment(pockets[i], prev, p) <= threshold) return { index: i, point: pockets[i] };
+    }
+    return null;
+  }
+
+  function cutInfo(cutAngle) {
+    const bands = [
+      { max: 15, grade: "厚球", from: 100, to: 82, start: 0 },
+      { max: 32, grade: "3/4 球", from: 82, to: 64, start: 15 },
+      { max: 52, grade: "半球", from: 64, to: 38, start: 32 },
+      { max: 72, grade: "1/4 球", from: 38, to: 12, start: 52 },
+      { max: 90, grade: "薄球", from: 12, to: 0, start: 72 },
+    ];
+    const band = bands.find((item) => cutAngle < item.max) || bands[bands.length - 1];
+    const t = Math.max(0, Math.min(1, (cutAngle - band.start) / (band.max - band.start)));
+    return { grade: band.grade, overlap: Math.round(band.from + (band.to - band.from) * t) };
+  }
+
+  function aimData(cue, target, pocket, radius) {
+    const objectToPocket = norm(v(target, pocket));
+    const ghost = add(target, mul(objectToPocket, -radius * 2));
+    const cueToGhost = norm(v(cue, ghost));
+    const tangent = perp(objectToPocket);
+    const sideSign = dot(cueToGhost, tangent) >= 0 ? 1 : -1;
+    const aPoint = add(target, mul(objectToPocket, -radius));
+    const bPoint = add(target, mul(tangent, radius * sideSign));
+    const cPoint = add(aPoint, v(bPoint, aPoint));
+    const cutCos = Math.max(-1, Math.min(1, dot(objectToPocket, cueToGhost)));
+    const cutAngle = Math.acos(cutCos) * 180 / Math.PI;
+    return { target, pocket, ghost, objectToPocket, cueToGhost, tangent, sideSign, aPoint, bPoint, cPoint, cutAngle };
+  }
+
+  function simulateCuePath(data, table, options) {
+    const radius = options.radius;
+    const cloth = options.cloth || "medium";
+    const power = options.power || 6;
+    const side = options.side || 0;
+    const spin = options.spin || "stun";
+    const pockets = options.pockets || [];
+    const normal = data.objectToPocket;
+    const tangent = perp(normal);
+    const tangentSpeed = dot(data.cueToGhost, tangent);
+    const tangentDir = mul(tangent, tangentSpeed >= 0 ? 1 : -1);
+    const start = { ...data.ghost };
+    const clothScale = cloth === "fast" ? 1.18 : cloth === "slow" ? 0.82 : 1;
+    const powerSpeed = (250 + power * 48) * clothScale;
+    const normalLeak = Math.max(0, dot(data.cueToGhost, normal)) * 0.09;
+    let velocity = add(mul(tangentDir, Math.abs(tangentSpeed) * powerSpeed * 0.95), mul(normal, normalLeak * powerSpeed));
+
+    // Roll velocity represents R * omega at the cloth contact patch.
+    const spinRatio = spin === "follow" ? 1.45 : spin === "draw" ? -1.7 : 0.03;
+    let rollVelocity = mul(data.cueToGhost, powerSpeed * spinRatio);
+    let sideSpin = side * 0.18 * powerSpeed;
+    let p = { ...start };
+    let rollAngle = options.rollAngle || 0;
+    let t = 0;
+    const points = [{ ...p, t, speed: len(velocity), rollAngle }];
+    const dt = 1 / 60;
+    const slideAccel = cloth === "fast" ? 125 : cloth === "slow" ? 205 : 165;
+    const rollAccel = cloth === "fast" ? 22 : cloth === "slow" ? 42 : 31;
+    const maxSeconds = 13;
+
+    for (let i = 0; i < maxSeconds / dt; i++) {
+      const slip = v(velocity, rollVelocity);
+      const slipMag = len(slip);
+      const speed = len(velocity);
+      if (speed < 4 && len(rollVelocity) < 4) break;
+
+      if (slipMag > 6) {
+        const slipDir = norm(slip);
+        const dv = Math.min(slideAccel * dt, slipMag * 0.18);
+        velocity = add(velocity, mul(slipDir, dv));
+        rollVelocity = add(rollVelocity, mul(slipDir, -dv * 1.25));
+      } else if (speed > EPS) {
+        rollVelocity = { ...velocity };
+        const dv = Math.min(rollAccel * dt, speed);
+        velocity = add(velocity, mul(norm(velocity), -dv));
+        rollVelocity = { ...velocity };
+      }
+
+      if (Math.abs(sideSpin) > 0.01 && speed > 18) {
+        const swerve = Math.min(Math.abs(sideSpin) * 0.00022 * speed * dt, 0.9) * Math.sign(sideSpin);
+        velocity = add(velocity, mul(tangentDir, swerve * 60));
+        sideSpin *= 0.992;
+      }
+
+      const previous = { ...p };
+      const step = mul(velocity, dt);
+      p = add(p, step);
+      rollAngle += len(step) / radius;
+      const hit = pocketHit(previous, p, pockets, radius);
+      if (hit) {
+        t += dt;
+        points.push({ ...hit.point, t, speed: 0, rollAngle, pocketed: true, pocketIndex: hit.index });
+        break;
+      }
+      if (clampTable(p, velocity, rollVelocity, table, radius, pockets)) sideSpin *= 0.55;
+      t += dt;
+      points.push({ ...p, t, speed: len(velocity), rollAngle });
+    }
+
+    return points;
+  }
+
+  window.ProBilliardsPhysics = {
+    aimData,
+    cutInfo,
+    simulateCuePath,
+  };
+})();

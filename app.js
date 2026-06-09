@@ -9,6 +9,7 @@ const aimModal = document.querySelector("#aimModal");
 const overlapSlider = document.querySelector("#overlapSlider");
 const cutLabel = document.querySelector("#cutLabel");
 const aimHint = document.querySelector("#aimHint");
+const separationLabel = document.querySelector("#separationLabel");
 const drillSelect = document.querySelector("#drillSelect");
 const gameTypeSelect = document.querySelector("#gameType");
 const powerSlider = document.querySelector("#powerSlider");
@@ -21,6 +22,28 @@ const powerCycleBtn = document.querySelector("#powerCycleBtn");
 const sideCycleBtn = document.querySelector("#sideCycleBtn");
 const railCycleBtn = document.querySelector("#railCycleBtn");
 const blockersBtn = document.querySelector("#blockersBtn");
+const previewCueBall = document.querySelector("#previewCueBall");
+const previewObjectBall = document.querySelector("#overlapPreview .object-ball");
+const powerFill = document.querySelector("#powerFill");
+const hitDot = document.querySelector("#hitDot");
+const bigCueBall = document.querySelector("#bigCueBall");
+const confirmCueBtn = document.querySelector("#confirmCueBtn");
+const menuBtn = document.querySelector("#menuBtn");
+let pendingCue = { spin: "follow", side: 0, x: 0, y: 0 };
+
+const art = {
+  table: loadImage("assets/cocos2d/eightBall/eightBall_DeskImage.png"),
+  atlas: loadImage("assets/cocos2d/eightBall/EightBall.png"),
+};
+
+const ballFrames = {
+  cue: { x: 608, y: 464, w: 50, h: 50 },
+  target: { x: 660, y: 464, w: 50, h: 50 },
+  eight: { x: 608, y: 704, w: 50, h: 50 },
+};
+const BALL_DRAW_SCALE = 1.96;
+const IMPACT_HOLD_SECONDS = 0.08;
+const POCKET_DROP_SECONDS = 0.42;
 
 const state = {
   mode: "aim",
@@ -33,13 +56,14 @@ const state = {
   railCount: 1,
   showBlockers: true,
   potted: false,
+  cueScratched: false,
   overlap: 50,
   aimGrade: "半球",
   aimAngle: 0,
   animation: null,
   balls: {
-    cue: { x: 245, y: 250, color: "#f4f5ee", label: "白" },
-    target: { x: 560, y: 210, color: "#f0c247", label: "1" },
+    cue: { x: 245, y: 250, color: "#f4f5ee", label: "", rollAngle: 0 },
+    target: { x: 560, y: 210, color: "#f0c247", label: "1", rollAngle: 0 },
     blocker1: { x: 420, y: 250, color: "#d53f3f", label: "障" },
     blocker2: { x: 510, y: 320, color: "#3359d6", label: "障" },
   },
@@ -47,9 +71,9 @@ const state = {
 
 const table = {
   x: 56,
-  y: 50,
+  y: 54,
   w: 788,
-  h: 400,
+  h: 388,
   ballR: 15,
 };
 
@@ -74,6 +98,13 @@ const spinIcon = { follow: "↟", stun: "•", draw: "↡" };
 const spinName = { follow: "高杆", stun: "中杆", draw: "低杆" };
 const sideOrder = [-4, 0, 4];
 let drillIndex = -1;
+
+function loadImage(src) {
+  const image = new Image();
+  image.src = src;
+  image.addEventListener("load", drawTable);
+  return image;
+}
 
 function v(a, b) {
   return { x: b.x - a.x, y: b.y - a.y };
@@ -103,27 +134,11 @@ function clampBall(ball) {
 }
 
 function aimData() {
-  const target = state.balls.target;
-  const pocket = pockets[state.selectedPocket];
-  const objectToPocket = norm(v(target, pocket));
-  const ghost = add(target, mul(objectToPocket, -table.ballR * 2));
-  const cueToGhost = norm(v(state.balls.cue, ghost));
-  const tangent = norm({ x: -objectToPocket.y, y: objectToPocket.x });
-  const sideSign = cueToGhost.x * tangent.x + cueToGhost.y * tangent.y >= 0 ? 1 : -1;
-  const aPoint = add(target, mul(objectToPocket, -table.ballR));
-  const bPoint = add(target, mul(tangent, table.ballR * sideSign));
-  const cPoint = add(aPoint, v(bPoint, aPoint));
-  const cutCos = Math.max(-1, Math.min(1, objectToPocket.x * cueToGhost.x + objectToPocket.y * cueToGhost.y));
-  const cutAngle = Math.acos(cutCos) * 180 / Math.PI;
-  return { target, pocket, ghost, objectToPocket, cueToGhost, tangent, sideSign, aPoint, bPoint, cPoint, cutAngle };
+  return window.ProBilliardsPhysics.aimData(state.balls.cue, state.balls.target, pockets[state.selectedPocket], table.ballR);
 }
 
 function cutInfo(cutAngle) {
-  if (cutAngle < 15) return { grade: "厚球", overlap: 90 };
-  if (cutAngle < 32) return { grade: "3/4 球", overlap: 75 };
-  if (cutAngle < 52) return { grade: "半球", overlap: 50 };
-  if (cutAngle < 72) return { grade: "1/4 球", overlap: 25 };
-  return { grade: "薄球", overlap: 8 };
+  return window.ProBilliardsPhysics.cutInfo(cutAngle);
 }
 
 function pathLength(points) {
@@ -148,72 +163,114 @@ function pointOnPath(points, progress) {
   return points[points.length - 1];
 }
 
-function clampWithBounce(position, velocity) {
-  const minX = table.x + table.ballR;
-  const maxX = table.x + table.w - table.ballR;
-  const minY = table.y + table.ballR;
-  const maxY = table.y + table.h - table.ballR;
-  if (position.x < minX || position.x > maxX) {
-    position.x = Math.max(minX, Math.min(maxX, position.x));
-    velocity.x *= -0.55;
-    velocity.y *= 0.82;
+function pointOnTimedPath(points, seconds) {
+  if (points.length <= 1) return points[0] || { x: 0, y: 0 };
+  if (typeof points[0].t !== "number") return pointOnPath(points, seconds);
+  if (seconds <= points[0].t) return points[0];
+  for (let i = 1; i < points.length; i++) {
+    if (seconds <= points[i].t) {
+      const span = points[i].t - points[i - 1].t || 1;
+      const t = (seconds - points[i - 1].t) / span;
+      const p = add(points[i - 1], mul(v(points[i - 1], points[i]), t));
+      if (typeof points[i - 1].rollAngle === "number" && typeof points[i].rollAngle === "number") {
+        p.rollAngle = points[i - 1].rollAngle + (points[i].rollAngle - points[i - 1].rollAngle) * t;
+      }
+      return p;
+    }
   }
-  if (position.y < minY || position.y > maxY) {
-    position.y = Math.max(minY, Math.min(maxY, position.y));
-    velocity.y *= -0.55;
-    velocity.x *= 0.82;
-  }
+  return points[points.length - 1];
 }
 
 function simulateCueAfterCollision() {
   const data = aimData();
-  const cueSpeed = 2.15 + state.power * 0.33;
-  const incoming = mul(data.cueToGhost, cueSpeed);
-  const normal = data.objectToPocket;
-  const tangent = norm({ x: -normal.y, y: normal.x });
-  const normalSpeed = incoming.x * normal.x + incoming.y * normal.y;
-  const tangentSpeed = incoming.x * tangent.x + incoming.y * tangent.y;
+  return window.ProBilliardsPhysics.simulateCuePath(data, table, {
+    radius: table.ballR,
+    pockets,
+    power: state.power,
+    spin: state.spin,
+    side: state.side,
+    cloth: state.cloth,
+    rollAngle: state.balls.cue.rollAngle || 0,
+  });
+}
 
-  let velocity = add(mul(tangent, tangentSpeed * 0.92), mul(normal, normalSpeed * 0.08));
-  let spin = state.spin === "follow" ? 0.12 : state.spin === "draw" ? -0.16 : 0;
-  let sideSpin = state.side * 0.012;
-  let p = add(data.target, mul(data.cueToGhost, -table.ballR * 1.9));
-  const points = [{ ...p }];
-  const dt = 1;
-  const friction = state.cloth === "fast" ? 0.988 : state.cloth === "slow" ? 0.966 : 0.978;
-
-  for (let i = 0; i < 190; i++) {
-    const currentSpeed = len(velocity);
-    if (currentSpeed < 0.08 && Math.abs(spin) < 0.01 && Math.abs(sideSpin) < 0.006) break;
-
-    const curveForce = add(mul(normal, spin * currentSpeed), mul(tangent, sideSpin * currentSpeed));
-    velocity = add(velocity, curveForce);
-    p = add(p, mul(velocity, dt));
-    clampWithBounce(p, velocity);
-    points.push({ ...p });
-
-    velocity = mul(velocity, friction);
-    spin *= 0.955;
-    sideSpin *= 0.965;
+function createObjectBallPath(data) {
+  const startRoll = state.balls.target.rollAngle || 0;
+  const points = [{ ...state.balls.target, t: 0, speed: 0, rollAngle: startRoll }];
+  const start = { ...state.balls.target };
+  const distance = len(v(start, data.pocket));
+  const powerSpeed = 230 + state.power * 43;
+  const initialSpeed = Math.max(190, Math.min(650, powerSpeed * Math.max(0.34, Math.cos(data.cutAngle * Math.PI / 180))));
+  const rollAccel = state.cloth === "fast" ? 20 : state.cloth === "slow" ? 40 : 30;
+  let traveled = 0;
+  let speed = initialSpeed;
+  let t = 0;
+  const dt = 1 / 60;
+  while (traveled < distance && speed > 8 && t < 8) {
+    traveled = Math.min(distance, traveled + speed * dt);
+    speed = Math.max(0, speed - rollAccel * dt);
+    t += dt;
+    const p = add(start, mul(data.objectToPocket, traveled));
+    points.push({ ...p, t, speed, rollAngle: startRoll + traveled / table.ballR });
   }
-
+  const last = points[points.length - 1];
+  if (len(v(last, data.pocket)) > 0.5) {
+    points.push({ ...data.pocket, t: t + 0.12, speed: 0, rollAngle: last.rollAngle });
+  }
   return points;
 }
 
 function createShotAnimation() {
   const data = aimData();
-  const cuePreImpact = [{ ...state.balls.cue }, add(data.target, mul(data.cueToGhost, -table.ballR * 1.9))];
+  const impactPoint = { ...data.ghost };
+  const cuePreDistance = len(v(state.balls.cue, impactPoint));
+  const cuePreSpeed = 320 + state.power * 58;
+  const cuePreDuration = Math.max(0.18, Math.min(0.75, cuePreDistance / cuePreSpeed));
+  const startRoll = state.balls.cue.rollAngle || 0;
+  const impactRoll = startRoll + cuePreDistance / table.ballR;
+  const cuePreImpact = [
+    { ...state.balls.cue, t: 0, rollAngle: startRoll },
+    { ...impactPoint, t: cuePreDuration, rollAngle: impactRoll },
+  ];
   const cueAfter = simulateCueAfterCollision();
+  const cueAfterTimed = cueAfter.map((point) => ({ ...point, t: point.t + cuePreDuration, rollAngle: point.rollAngle + cuePreDistance / table.ballR }));
+  const targetPath = createObjectBallPath(data).map((point) => ({ ...point, t: point.t + cuePreDuration }));
+  const cuePocket = cueAfterTimed.find((point) => point.pocketed);
+  const cueScratched = Boolean(cuePocket);
+  const cuePocketTime = cuePocket ? cuePocket.t : Infinity;
+  const cueEnd = cueAfterTimed[cueAfterTimed.length - 1];
+  const targetEnd = targetPath[targetPath.length - 1];
+  const targetPocketTime = targetEnd.t;
+  const durationSeconds = Math.max(
+    cueEnd.t + (cueScratched ? POCKET_DROP_SECONDS : 0),
+    targetPocketTime + POCKET_DROP_SECONDS,
+  ) + 0.05;
   return {
     cuePreImpact,
-    cueAfter,
-    targetPath: [{ ...state.balls.target }, { ...data.pocket }],
+    cueAfter: cueAfterTimed,
+    targetPath,
     targetStart: { ...state.balls.target },
-    targetEnd: { ...data.pocket },
-    cueEnd: cueAfter[cueAfter.length - 1],
+    targetEnd,
+    targetPocket: { ...data.pocket },
+    targetPocketTime,
+    cueEnd,
+    cuePocket,
+    cuePocketTime,
+    cueScratched,
     startedAt: performance.now(),
-    duration: 1700 + state.power * 90,
+    duration: (durationSeconds + IMPACT_HOLD_SECONDS) * 1000,
+    cuePreDuration,
   };
+}
+
+function separationInfo(points, data) {
+  if (!points || points.length < 8) return { angle: 0, direction: data.tangent };
+  const start = points[0];
+  const next = points[Math.min(points.length - 1, 8)];
+  const direction = norm(v(start, next));
+  const dot = Math.max(-1, Math.min(1, direction.x * data.objectToPocket.x + direction.y * data.objectToPocket.y));
+  const angle = Math.round(Math.acos(dot) * 180 / Math.PI);
+  return { angle, direction };
 }
 
 function escapePath() {
@@ -246,62 +303,32 @@ function escapePath() {
 function drawTable() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const outerWood = ctx.createLinearGradient(22, 16, 878, 484);
-  outerWood.addColorStop(0, "#3b1d12");
-  outerWood.addColorStop(0.45, "#b86f28");
-  outerWood.addColorStop(0.56, "#3a1a10");
-  outerWood.addColorStop(1, "#140b08");
-  ctx.fillStyle = outerWood;
-  roundRect(22, 16, 856, 468, 30);
-  ctx.fill();
+  const bg = ctx.createRadialGradient(450, 230, 70, 450, 250, 520);
+  bg.addColorStop(0, "#26345c");
+  bg.addColorStop(0.48, "#141a36");
+  bg.addColorStop(1, "#080b18");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const railWood = ctx.createLinearGradient(36, 30, 864, 470);
-  railWood.addColorStop(0, "#d18a38");
-  railWood.addColorStop(0.18, "#8e4d20");
-  railWood.addColorStop(0.5, "#e1a04f");
-  railWood.addColorStop(0.82, "#7b3c1a");
-  railWood.addColorStop(1, "#2b140c");
-  ctx.fillStyle = railWood;
-  roundRect(36, 30, 828, 440, 22);
-  ctx.fill();
-
-  ctx.save();
-  ctx.strokeStyle = "rgba(38, 16, 7, .55)";
-  ctx.lineWidth = 2;
-  for (let y = 50; y < 464; y += 38) {
-    ctx.beginPath();
-    ctx.moveTo(40, y);
-    ctx.bezierCurveTo(210, y - 12, 420, y + 12, 860, y - 4);
-    ctx.stroke();
+  if (art.table.complete && art.table.naturalWidth) {
+    drawCoverImage(art.table, 8, 4, 884, 492);
   }
-  ctx.restore();
-
-  const felt = ctx.createLinearGradient(0, table.y, 0, table.y + table.h);
-  felt.addColorStop(0, "#3d7e88");
-  felt.addColorStop(0.48, "#2b6670");
-  felt.addColorStop(1, "#204d56");
-  ctx.fillStyle = felt;
-  roundRect(table.x, table.y, table.w, table.h, 12);
-  ctx.fill();
-
-  ctx.save();
-  ctx.strokeStyle = "rgba(255,255,255,.12)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(table.x + table.w * 0.25, table.y + 18);
-  ctx.lineTo(table.x + table.w * 0.25, table.y + table.h - 18);
-  ctx.stroke();
-  drawTableSpot(table.x + table.w * 0.25, table.y + table.h / 2);
-  drawTableSpot(table.x + table.w / 2, table.y + table.h / 2);
-  drawTableSpot(table.x + table.w * 0.75, table.y + table.h / 2);
-  ctx.restore();
-
-  drawPockets();
 
   if (!state.potted) drawSightLines();
   drawBalls();
-  drawShotAnimation();
+  if (state.animation) {
+    drawShotAnimation();
+  }
   updateAimView();
+}
+
+function drawCoverImage(image, x, y, w, h) {
+  const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+  const sw = w / scale;
+  const sh = h / scale;
+  const sx = (image.naturalWidth - sw) / 2;
+  const sy = (image.naturalHeight - sh) / 2;
+  ctx.drawImage(image, sx, sy, sw, sh, x, y, w, h);
 }
 
 function drawPockets() {
@@ -379,15 +406,18 @@ function drawTableSpot(x, y) {
 
 function drawSightLines() {
   const data = aimData();
+  const cuePath = simulateCueAfterCollision();
+  const sep = separationInfo(cuePath, data);
   drawLine(data.target, data.pocket, "#f0c247", 3, []);
   drawLine(state.balls.cue, data.ghost, "#f4f5ee", 2, [8, 8]);
   drawCircle(data.ghost, table.ballR, "rgba(255,255,255,.12)", "rgba(255,255,255,.78)", [5, 5]);
+  drawPolyline(cuePath, "#7fc7ff", 3, [10, 7]);
+  drawSeparationAngle(data, sep);
   drawAimPoints(data);
 
   if (state.mode === "angle") {
     const targetEnd = add(data.target, mul(data.objectToPocket, 270));
     drawLine(data.target, targetEnd, "#f0c247", 2, []);
-    drawPolyline(simulateCueAfterCollision(), "#7fc7ff", 3, [10, 7]);
   }
 
   if (state.mode === "escape") {
@@ -397,6 +427,27 @@ function drawSightLines() {
       if (i > 0) drawCircle(points[i], 7, "#f0c247", "transparent");
     }
   }
+}
+
+function drawSeparationAngle(data, sep) {
+  const center = { ...data.ghost };
+  const radius = 42;
+  const a0 = Math.atan2(data.objectToPocket.y, data.objectToPocket.x);
+  const a1 = Math.atan2(sep.direction.y, sep.direction.x);
+  ctx.save();
+  ctx.strokeStyle = "rgba(155, 214, 255, .92)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, a0, a1, Math.abs(a1 - a0) > Math.PI);
+  ctx.stroke();
+  const mid = (a0 + a1) / 2;
+  ctx.fillStyle = "#9bd6ff";
+  ctx.font = "700 14px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`${sep.angle}°`, center.x + Math.cos(mid) * (radius + 18), center.y + Math.sin(mid) * (radius + 18));
+  ctx.restore();
 }
 
 function drawAimPoints(data) {
@@ -409,42 +460,57 @@ function drawBalls() {
   Object.entries(state.balls).forEach(([key, ball]) => {
     if (state.animation && (key === "cue" || key === "target")) return;
     if (state.potted && key === "target") return;
+    if (state.cueScratched && key === "cue") return;
     if (!state.showBlockers && key.startsWith("blocker")) return;
     if (state.mode !== "escape" && key.startsWith("blocker")) return;
     drawBall(ball, table.ballR, ball.color, key === "cue");
-    ctx.fillStyle = key === "cue" ? "#1d211d" : "#fff";
-    ctx.font = "700 12px system-ui";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(ball.label, ball.x, ball.y);
+    if (key !== "cue" && key !== "target") {
+      ctx.fillStyle = "#fff";
+      ctx.font = "700 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ball.label, ball.x, ball.y);
+    }
   });
 }
 
 function drawShotAnimation() {
   if (!state.animation) return;
   const elapsed = performance.now() - state.animation.startedAt;
-  const t = Math.min(1, elapsed / state.animation.duration);
-  const impactT = Math.min(1, t / 0.24);
-  const rollT = Math.max(0, (t - 0.2) / 0.8);
-  const cue = t < 0.24
-    ? pointOnPath(state.animation.cuePreImpact, 1 - Math.pow(1 - impactT, 2))
-    : pointOnPath(state.animation.cueAfter, 1 - Math.pow(1 - rollT, 2.4));
-  const targetT = Math.min(1, rollT / 0.72);
-  const target = pointOnPath(state.animation.targetPath, 1 - Math.pow(1 - targetT, 2));
+  const rawSeconds = elapsed / 1000;
+  const seconds = rawSeconds < state.animation.cuePreDuration
+    ? rawSeconds
+    : Math.max(state.animation.cuePreDuration, rawSeconds - IMPACT_HOLD_SECONDS);
+  const cue = seconds < state.animation.cuePreDuration
+    ? pointOnTimedPath(state.animation.cuePreImpact, seconds)
+    : pointOnTimedPath(state.animation.cueAfter, seconds);
+  const target = pointOnTimedPath(state.animation.targetPath, seconds);
+  const hasTargetLeftImpact = seconds >= state.animation.cuePreDuration - 0.001;
+  const cueDropProgress = (seconds - state.animation.cuePocketTime) / POCKET_DROP_SECONDS;
+  const targetDropProgress = (seconds - state.animation.targetPocketTime) / POCKET_DROP_SECONDS;
 
-  drawBall(cue, table.ballR, "#f4f5ee", true, "rgba(127,199,255,.9)");
-  if (targetT < 0.98) {
+  if (!state.animation.cueScratched || seconds < state.animation.cuePocketTime) {
+    drawBall(cue, table.ballR, "#f4f5ee", true, "rgba(127,199,255,.9)");
+  } else if (cueDropProgress < 1) {
+    drawPocketDropBall(state.animation.cuePocket, table.ballR, "#f4f5ee", true, Math.max(0, cueDropProgress), "rgba(127,199,255,.9)");
+  }
+  if (seconds < state.animation.cuePreDuration || (hasTargetLeftImpact && seconds < state.animation.targetPocketTime)) {
     drawBall(target, table.ballR, state.balls.target.color, false, "rgba(240,194,71,.9)");
+  } else if (targetDropProgress < 1) {
+    drawPocketDropBall(state.animation.targetPocket, table.ballR, state.balls.target.color, false, Math.max(0, targetDropProgress), "rgba(240,194,71,.9)");
   }
 
-  if (t < 1) {
+  if (elapsed < state.animation.duration) {
     requestAnimationFrame(drawTable);
   } else {
     Object.assign(state.balls.cue, state.animation.cueEnd);
     Object.assign(state.balls.target, state.animation.targetEnd);
     state.potted = true;
+    state.cueScratched = state.animation.cueScratched;
     state.animation = null;
-    tableNote.textContent = "目标球入袋，白球已按分离角停位。点击重置或关卡继续。";
+    tableNote.textContent = state.cueScratched
+      ? "目标球入袋，但白球也摔袋。点击重置或关卡继续。"
+      : "目标球入袋，白球已按分离角停位。点击重置或关卡继续。";
     drawTable();
   }
 }
@@ -501,6 +567,20 @@ function drawCircle(p, r, fill, stroke, dash = []) {
 }
 
 function drawBall(p, r, fill, cue = false, stroke = "rgba(0,0,0,.42)") {
+  const frame = cue ? ballFrames.cue : fill === state.balls.target.color ? ballFrames.target : null;
+  const visualR = r * BALL_DRAW_SCALE / 2;
+  drawBallContactShadow(p, visualR);
+  if (frame && art.atlas.complete && art.atlas.naturalWidth) {
+    const size = r * BALL_DRAW_SCALE;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rollAngle || 0);
+    ctx.drawImage(art.atlas, frame.x, frame.y, frame.w, frame.h, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    if (cue) drawCueBallSpots(p, visualR);
+    return;
+  }
+
   ctx.save();
   ctx.beginPath();
   const shadow = ctx.createRadialGradient(p.x + r * 0.4, p.y + r * 0.52, 1, p.x, p.y, r * 1.1);
@@ -526,7 +606,115 @@ function drawBall(p, r, fill, cue = false, stroke = "rgba(0,0,0,.42)") {
   ctx.fillStyle = "rgba(255,255,255,.78)";
   ctx.arc(p.x - r * 0.34, p.y - r * 0.38, r * 0.18, 0, Math.PI * 2);
   ctx.fill();
+
+  if (cue) drawCueBallSpots(p, r);
   ctx.restore();
+}
+
+function drawPocketDropBall(p, r, fill, cue, progress, stroke) {
+  const eased = 1 - Math.pow(1 - Math.max(0, Math.min(1, progress)), 2);
+  const scale = 1 - eased * 0.72;
+  const sink = eased * r * 0.35;
+
+  ctx.save();
+  ctx.globalAlpha = 1 - eased * 0.82;
+  ctx.translate(p.x, p.y + sink);
+  ctx.scale(scale, scale);
+  drawBall({ x: 0, y: 0, rollAngle: p.rollAngle || 0 }, r, fill, cue, stroke);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = eased * 0.5;
+  ctx.fillStyle = "#020202";
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r * (0.7 + eased * 0.18), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBallContactShadow(p, r) {
+  ctx.save();
+  const grad = ctx.createRadialGradient(p.x + r * 0.2, p.y + r * 0.78, r * 0.06, p.x + r * 0.1, p.y + r * 0.82, r * 1.42);
+  grad.addColorStop(0, "rgba(0, 0, 0, .58)");
+  grad.addColorStop(0.34, "rgba(0, 0, 0, .32)");
+  grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(p.x + r * 0.18, p.y + r * 0.76, r * 1.13, r * 0.48, -0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(0, 0, 0, .34)";
+  ctx.beginPath();
+  ctx.ellipse(p.x + r * 0.1, p.y + r * 0.86, r * 0.58, r * 0.18, -0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCueBallSpots(p, r) {
+  const roll = p.rollAngle || 0;
+  const faces = [
+    { x: 1, y: 0, z: 0 },
+    { x: -1, y: 0, z: 0 },
+    { x: 0, y: 1, z: 0 },
+    { x: 0, y: -1, z: 0 },
+    { x: 0, y: 0, z: 1 },
+    { x: 0, y: 0, z: -1 },
+  ];
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r - 0.8, 0, Math.PI * 2);
+  ctx.clip();
+
+  faces.forEach((face) => {
+    const aroundY = rotateY(face, roll);
+    const rotated = rotateX(aroundY, roll * 0.38);
+    if (rotated.z <= 0.04) return;
+
+    const screenX = p.x + rotated.x * r * 0.72;
+    const screenY = p.y + rotated.y * r * 0.72;
+    const edge = Math.min(1, Math.hypot(rotated.x, rotated.y));
+    const visible = Math.max(0.18, Math.min(1, rotated.z));
+    const spotW = r * 0.28 * (0.58 + visible * 0.42);
+    const spotH = r * 0.16 * Math.max(0.2, visible) * (1 - edge * 0.24);
+    const tilt = Math.atan2(rotated.y, rotated.x) + Math.PI / 2;
+
+    ctx.save();
+    ctx.translate(screenX, screenY);
+    ctx.rotate(tilt);
+    ctx.beginPath();
+    const grad = ctx.createRadialGradient(-spotW * 0.2, -spotH * 0.3, 1, 0, 0, Math.max(spotW, spotH));
+    grad.addColorStop(0, `rgba(255, 72, 64, ${0.96 * visible})`);
+    grad.addColorStop(0.6, `rgba(213, 8, 2, ${0.96 * visible})`);
+    grad.addColorStop(1, `rgba(126, 0, 0, ${0.88 * visible})`);
+    ctx.fillStyle = grad;
+    ctx.ellipse(0, 0, spotW, spotH, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(92, 0, 0, ${0.22 * visible})`;
+    ctx.lineWidth = Math.max(0.7, r * 0.035);
+    ctx.stroke();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+function rotateX(point, angle) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return {
+    x: point.x,
+    y: point.y * c - point.z * s,
+    z: point.y * s + point.z * c,
+  };
+}
+
+function rotateY(point, angle) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return {
+    x: point.x * c + point.z * s,
+    y: point.y,
+    z: point.z * c - point.x * s,
+  };
 }
 
 function shadeColor(hex, percent) {
@@ -564,23 +752,48 @@ function roundRect(x, y, w, h, r) {
 
 function updateAimView() {
   if (state.potted) {
-    cutLabel.textContent = "目标球入袋";
-    aimHint.textContent = "点击重置或切换关卡继续练习";
+    cutLabel.textContent = state.cueScratched ? "白球摔袋" : "目标球入袋";
+    aimHint.textContent = state.cueScratched
+      ? "目标球入袋，但白球也摔袋"
+      : "点击重置或切换关卡继续练习";
+    if (separationLabel) separationLabel.textContent = state.cueScratched ? "白球摔袋" : "分离角已完成";
     updateToolLabels();
     return;
   }
   const { cutAngle } = aimData();
+  const data = aimData();
+  const sep = separationInfo(simulateCueAfterCollision(), data);
   const { grade, overlap } = cutInfo(cutAngle);
   state.aimAngle = Math.round(cutAngle);
   state.aimGrade = grade;
   state.overlap = overlap;
   overlapSlider.value = String(overlap);
+  updateOverlapPreview(overlap);
   cutLabel.textContent = `${grade} · ${Math.round(cutAngle)}°`;
   aimHint.textContent = state.mode === "escape"
     ? "解球模式显示库边反射点，目标是先解到目标球。"
     : "白球中心对准虚线假想球中心，目标球沿黄色线入袋。";
+  if (separationLabel) separationLabel.textContent = `分离角约 ${sep.angle}° · ${spinName[state.spin]}`;
   drawAimDiagram();
   updateToolLabels();
+}
+
+function updateOverlapPreview(overlap) {
+  if (!previewCueBall || !previewObjectBall || !overlapPreview) return;
+  const ballSize = parseFloat(getComputedStyle(previewCueBall).width) || 66;
+  const baseLeft = (overlapPreview.clientWidth - ballSize) / 2;
+  const side = state.balls.cue.x >= state.balls.target.x ? 1 : -1;
+  const gap = (1 - overlap / 100) * ballSize * 0.92;
+  previewObjectBall.style.left = `${baseLeft}px`;
+  previewCueBall.style.left = `${baseLeft + side * gap}px`;
+  previewCueBall.style.zIndex = side > 0 ? "3" : "1";
+  previewObjectBall.style.zIndex = "2";
+}
+
+function updatePowerMeter() {
+  if (!powerFill) return;
+  const pct = ((state.power - 1) / 9) * 100;
+  powerFill.style.height = `${Math.max(7, pct)}%`;
 }
 
 function updateToolLabels() {
@@ -589,7 +802,6 @@ function updateToolLabels() {
     gameToggleBtn.title = gameTypeSelect.value === "nineball" ? "九球" : "中式八球";
   }
   if (spinCycleBtn) {
-    spinCycleBtn.textContent = spinIcon[state.spin];
     spinCycleBtn.title = spinName[state.spin];
   }
   if (powerCycleBtn) {
@@ -608,6 +820,16 @@ function updateToolLabels() {
     blockersBtn.classList.toggle("active", state.showBlockers);
     blockersBtn.title = state.showBlockers ? "隐藏障碍球" : "显示障碍球";
   }
+  updatePowerMeter();
+  updateCueDot();
+}
+
+function updateCueDot() {
+  if (!hitDot) return;
+  const x = (state.side / 5) * 38;
+  const y = state.spin === "follow" ? -42 : state.spin === "draw" ? 42 : 0;
+  hitDot.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+  pendingCue = { spin: state.spin, side: state.side, x, y };
 }
 
 function drawAimDiagram() {
@@ -652,7 +874,7 @@ function drawAimDiagram() {
   aimCtx.textAlign = "left";
   aimCtx.fillText(`${state.aimAngle}° · ${state.aimGrade}`, 22, 36);
   aimCtx.font = "15px system-ui";
-  aimCtx.fillText(`正视图同步俯视图厚薄：${Math.round(state.overlap)}%`, 22, 60);
+  aimCtx.fillText(`连续重合厚度：${Math.round(state.overlap)}%`, 22, 60);
   aimCtx.fillStyle = "#ff2b22";
   aimCtx.font = "18px system-ui";
   aimCtx.fillText("A", 22, 92);
@@ -749,6 +971,7 @@ function pointerPos(event) {
 function nearestBall(p) {
   return Object.entries(state.balls).find(([key, ball]) => {
     if (state.potted && key === "target") return false;
+    if (state.cueScratched && key === "cue") return false;
     if (state.mode !== "escape" && key.startsWith("blocker")) return false;
     return len(v(p, ball)) < table.ballR * 1.8;
   });
@@ -786,12 +1009,13 @@ canvas.addEventListener("pointerup", () => {
 modeButtons.forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
 
 document.querySelector("#resetBtn").addEventListener("click", () => {
-  Object.assign(state.balls.cue, { x: 245, y: 250 });
-  Object.assign(state.balls.target, { x: 560, y: 210 });
+  Object.assign(state.balls.cue, { x: 245, y: 250, rollAngle: 0 });
+  Object.assign(state.balls.target, { x: 560, y: 210, rollAngle: 0 });
   Object.assign(state.balls.blocker1, { x: 420, y: 250 });
   Object.assign(state.balls.blocker2, { x: 510, y: 320 });
   state.selectedPocket = 5;
   state.potted = false;
+  state.cueScratched = false;
   state.animation = null;
   tableNote.textContent = "拖动白球或目标球，点击袋口切换目标袋。";
   drawTable();
@@ -805,10 +1029,11 @@ document.querySelector("#newDrillBtn").addEventListener("click", () => {
   const value = drillSelect.value;
   if (value === "free") return;
   const drill = drills[value];
-  Object.assign(state.balls.cue, { x: drill.cue[0], y: drill.cue[1] });
-  Object.assign(state.balls.target, { x: drill.target[0], y: drill.target[1] });
+  Object.assign(state.balls.cue, { x: drill.cue[0], y: drill.cue[1], rollAngle: 0 });
+  Object.assign(state.balls.target, { x: drill.target[0], y: drill.target[1], rollAngle: 0 });
   state.selectedPocket = drill.pocket;
   state.potted = false;
+  state.cueScratched = false;
   state.animation = null;
   drillIndex = drillOrder.indexOf(value);
   tableNote.textContent = `已切换关卡：${drillSelect.options[drillSelect.selectedIndex].text}`;
@@ -831,6 +1056,7 @@ document.querySelector("#spinButtons").addEventListener("click", (event) => {
 
 powerSlider.addEventListener("input", (event) => {
   state.power = Number(event.target.value);
+  updatePowerMeter();
   drawTable();
 });
 
@@ -856,7 +1082,9 @@ showBlockersInput.addEventListener("change", (event) => {
 
 document.querySelector("#playBtn").addEventListener("click", () => {
   if (state.potted) {
-    tableNote.textContent = "目标球已经入袋，请先重置或切换关卡。";
+    tableNote.textContent = state.cueScratched
+      ? "白球已经摔袋，请先重置或切换关卡。"
+      : "目标球已经入袋，请先重置或切换关卡。";
     return;
   }
   state.animation = createShotAnimation();
@@ -874,13 +1102,10 @@ gameToggleBtn.addEventListener("click", () => {
 });
 
 spinCycleBtn.addEventListener("click", () => {
-  const nextIndex = (spinOrder.indexOf(state.spin) + 1) % spinOrder.length;
-  state.spin = spinOrder[nextIndex];
-  [...document.querySelector("#spinButtons").children].forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.spin === state.spin);
-  });
-  tableNote.textContent = `杆法：${spinName[state.spin]}`;
-  drawTable();
+  pendingCue = { spin: state.spin, side: state.side, x: (state.side / 5) * 38, y: state.spin === "follow" ? -42 : state.spin === "draw" ? 42 : 0 };
+  updateCueDot();
+  aimModal.classList.add("open");
+  aimModal.setAttribute("aria-hidden", "false");
 });
 
 powerCycleBtn.addEventListener("click", () => {
@@ -915,7 +1140,7 @@ blockersBtn.addEventListener("click", () => {
 document.querySelector("#openAimViewBtn").addEventListener("click", () => {
   aimModal.classList.add("open");
   aimModal.setAttribute("aria-hidden", "false");
-  updateAimView();
+  updateCueDot();
 });
 
 document.querySelector("#closeAimViewBtn").addEventListener("click", () => {
@@ -933,6 +1158,46 @@ aimModal.addEventListener("click", (event) => {
 overlapSlider.addEventListener("input", (event) => {
   event.target.value = String(state.overlap);
   drawAimDiagram();
+});
+
+function setPendingCueFromPoint(clientX, clientY) {
+  const rect = bigCueBall.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const radius = rect.width / 2;
+  const dx = Math.max(-0.82, Math.min(0.82, (clientX - cx) / radius));
+  const dy = Math.max(-0.82, Math.min(0.82, (clientY - cy) / radius));
+  pendingCue.side = Math.round(dx * 5);
+  pendingCue.spin = dy < -0.24 ? "follow" : dy > 0.24 ? "draw" : "stun";
+  pendingCue.x = dx * 50;
+  pendingCue.y = dy * 50;
+  hitDot.style.transform = `translate(calc(-50% + ${pendingCue.x}px), calc(-50% + ${pendingCue.y}px))`;
+}
+
+bigCueBall.addEventListener("pointerdown", (event) => {
+  bigCueBall.setPointerCapture(event.pointerId);
+  setPendingCueFromPoint(event.clientX, event.clientY);
+});
+
+bigCueBall.addEventListener("pointermove", (event) => {
+  if (event.buttons) setPendingCueFromPoint(event.clientX, event.clientY);
+});
+
+confirmCueBtn.addEventListener("click", () => {
+  state.spin = pendingCue.spin;
+  state.side = pendingCue.side;
+  sideSlider.value = String(state.side);
+  [...document.querySelector("#spinButtons").children].forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.spin === state.spin);
+  });
+  tableNote.textContent = `杆法：${spinName[state.spin]}${state.side ? `，${state.side < 0 ? "左塞" : "右塞"}` : ""}`;
+  aimModal.classList.remove("open");
+  aimModal.setAttribute("aria-hidden", "true");
+  drawTable();
+});
+
+menuBtn.addEventListener("click", () => {
+  tableNote.textContent = "障碍球练习后续加入。";
 });
 
 updateToolLabels();
