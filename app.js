@@ -194,6 +194,10 @@ function cutInfo(cutAngle) {
   return window.ProBilliardsPhysics.cutInfo(cutAngle);
 }
 
+function isPottingAngleValid(data = aimData()) {
+  return data.cutAngle < 90;
+}
+
 function pathLength(points) {
   let total = 0;
   for (let i = 1; i < points.length; i++) total += len(v(points[i - 1], points[i]));
@@ -485,10 +489,11 @@ function drawSightLines() {
   const data = aimData();
   const cuePath = simulateCueAfterCollision();
   const sep = separationInfo(cuePath, data);
-  drawLine(data.target, data.pocket, "#f0c247", 3, []);
+  const validPot = isPottingAngleValid(data);
+  drawLine(data.target, data.pocket, validPot ? "#f0c247" : "#ff5a3d", 3, validPot ? [] : [10, 7]);
   drawLine(state.balls.cue, data.ghost, "#f4f5ee", 2, [8, 8]);
   drawCircle(data.ghost, table.ballR, "rgba(255,255,255,.12)", "rgba(255,255,255,.78)", [5, 5]);
-  drawPolyline(cuePath, "#7fc7ff", 3, [10, 7]);
+  if (validPot) drawPolyline(cuePath, "#7fc7ff", 3, [10, 7]);
   drawSeparationAngle(data, sep);
   drawAimPoints(data);
 
@@ -528,9 +533,7 @@ function drawSeparationAngle(data, sep) {
 }
 
 function drawAimPoints(data) {
-  drawPointLabel(data.aPoint, "A", "#ff2b22", 5, 14, -10);
   drawPointLabel(data.bPoint, "B", "#1fbb37", 5, 12, 2);
-  drawPointLabel(data.cPoint, "C", "#195cff", 5, -18, -4);
 }
 
 function drawBalls() {
@@ -872,16 +875,19 @@ function updateAimView() {
   const data = aimData();
   const sep = separationInfo(simulateCueAfterCollision(), data);
   const { grade, overlap } = cutInfo(cutAngle);
+  const validPot = isPottingAngleValid(data);
   state.aimAngle = Math.round(cutAngle);
   state.aimGrade = grade;
   state.overlap = overlap;
   overlapSlider.value = String(overlap);
   updateOverlapPreview(overlap);
-  cutLabel.textContent = `${grade} · ${Math.round(cutAngle)}°`;
-  aimHint.textContent = state.mode === "escape"
+  cutLabel.textContent = validPot ? `${grade} · ${Math.round(cutAngle)}°` : `角度错误 · ${Math.round(cutAngle)}°`;
+  aimHint.textContent = !validPot
+    ? "当前白球位置无法把目标球打进所选袋口，请换角度或换袋。"
+    : state.mode === "escape"
     ? "解球模式显示库边反射点，目标是先解到目标球。"
     : "白球中心对准虚线假想球中心，目标球沿黄色线入袋。";
-  if (separationLabel) separationLabel.textContent = `分离角约 ${sep.angle}° · ${spinName[state.spin]}`;
+  if (separationLabel) separationLabel.textContent = validPot ? `分离角约 ${sep.angle}° · ${spinName[state.spin]}` : "无法进所选袋";
   drawAimDiagram();
   updateToolLabels();
 }
@@ -1225,6 +1231,11 @@ document.querySelector("#playBtn").addEventListener("click", () => {
     tableNote.textContent = state.cueScratched
       ? "白球已经摔袋，请先重置或切换关卡。"
       : "目标球已经入袋，请先重置或切换关卡。";
+    return;
+  }
+  if (!isPottingAngleValid()) {
+    tableNote.textContent = "角度错误：当前白球位置无法把目标球打进所选袋口。";
+    drawTable();
     return;
   }
   state.lastShotSetup = captureShotSetup();
