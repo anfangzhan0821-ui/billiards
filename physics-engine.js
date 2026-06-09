@@ -44,18 +44,22 @@
     const maxX = table.x + table.w - radius;
     const minY = table.y + radius;
     const maxY = table.y + table.h - radius;
+    const midX = table.x + table.w / 2;
+    const midY = table.y + table.h / 2;
     const lane = radius * 2.15;
     const cornerLane = radius * 2.35;
-    const isSidePocket = Math.abs(pocket.x - (table.x + table.w / 2)) < 0.5;
+    const isSidePocket = Math.abs(pocket.x - midX) < table.w * 0.12;
+    const pocketOnLeft = pocket.x < midX;
+    const pocketOnTop = pocket.y < midY;
 
     if (isSidePocket) {
-      const outsideTop = pocket.y === table.y && p.y < minY;
-      const outsideBottom = pocket.y === table.y + table.h && p.y > maxY;
+      const outsideTop = pocketOnTop && p.y < minY;
+      const outsideBottom = !pocketOnTop && p.y > maxY;
       return Math.abs(p.x - pocket.x) <= lane && (outsideTop || outsideBottom);
     }
 
-    const outsideX = pocket.x === table.x ? p.x < minX : p.x > maxX;
-    const outsideY = pocket.y === table.y ? p.y < minY : p.y > maxY;
+    const outsideX = pocketOnLeft ? p.x < minX : p.x > maxX;
+    const outsideY = pocketOnTop ? p.y < minY : p.y > maxY;
     return outsideX && outsideY && Math.abs(p.x - pocket.x) <= cornerLane && Math.abs(p.y - pocket.y) <= cornerLane;
   }
 
@@ -63,8 +67,8 @@
     if (!Array.isArray(pockets)) return false;
     return pockets.some((pocket) => {
       if (!inPocketLane(p, pocket, table, radius)) return false;
-      if (axis === "y") return pocket.y === table.y || pocket.y === table.y + table.h;
-      return pocket.x === table.x || pocket.x === table.x + table.w;
+      if (axis === "y") return pocket.y < table.y + table.h / 2 || pocket.y > table.y + table.h / 2;
+      return pocket.x < table.x + table.w / 2 || pocket.x > table.x + table.w / 2;
     });
   }
 
@@ -101,7 +105,7 @@
 
   function pocketHit(prev, p, pockets, radius) {
     if (!Array.isArray(pockets)) return null;
-    const threshold = radius * 0.82;
+    const threshold = radius * 1.28;
     for (let i = 0; i < pockets.length; i++) {
       if (distanceToSegment(pockets[i], prev, p) <= threshold) return { index: i, point: pockets[i] };
     }

@@ -86,12 +86,12 @@ const table = {
 };
 
 const pockets = [
-  { x: table.x, y: table.y },
-  { x: table.x + table.w / 2, y: table.y },
-  { x: table.x + table.w, y: table.y },
-  { x: table.x, y: table.y + table.h },
-  { x: table.x + table.w / 2, y: table.y + table.h },
-  { x: table.x + table.w, y: table.y + table.h },
+  { x: 52, y: 43 },
+  { x: 450, y: 33 },
+  { x: 849, y: 42 },
+  { x: 51, y: 454 },
+  { x: 451, y: 463 },
+  { x: 849, y: 455 },
 ];
 
 const drills = {
