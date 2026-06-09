@@ -890,8 +890,9 @@ function updateOverlapPreview(overlap) {
   if (!previewCueBall || !previewObjectBall || !overlapPreview) return;
   const ballSize = parseFloat(getComputedStyle(previewCueBall).width) || 66;
   const baseLeft = (overlapPreview.clientWidth - ballSize) / 2;
-  const sideProgress = Math.max(-1, Math.min(1, (state.balls.cue.x - state.balls.target.x) / (table.w * 0.28)));
-  const gap = (1 - overlap / 100) * ballSize * 0.92 * sideProgress;
+  const data = aimData();
+  const signedCutOffset = Math.max(-1, Math.min(1, data.cueToGhost.x * data.tangent.x + data.cueToGhost.y * data.tangent.y));
+  const gap = signedCutOffset * ballSize * 0.92;
   previewObjectBall.style.left = `${baseLeft}px`;
   previewCueBall.style.left = `${baseLeft + gap}px`;
   previewCueBall.style.zIndex = "3";
