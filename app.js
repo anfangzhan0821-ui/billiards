@@ -69,6 +69,7 @@ const state = {
   aimGrade: "半球",
   aimAngle: 0,
   animation: null,
+  lastShotSetup: null,
   balls: {
     cue: { x: 245, y: 250, color: "#f4f5ee", label: "", rollAngle: 0 },
     target: { x: 560, y: 210, color: "#f0c247", label: "1", rollAngle: 0 },
@@ -140,6 +141,49 @@ function clampBall(ball) {
   ball.x = Math.max(table.x + table.ballR, Math.min(table.x + table.w - table.ballR, ball.x));
   ball.y = Math.max(table.y + table.ballR, Math.min(table.y + table.h - table.ballR, ball.y));
   return ball;
+}
+
+function captureShotSetup() {
+  return {
+    selectedPocket: state.selectedPocket,
+    spin: state.spin,
+    power: state.power,
+    side: state.side,
+    cloth: state.cloth,
+    railCount: state.railCount,
+    showBlockers: state.showBlockers,
+    mode: state.mode,
+    balls: {
+      cue: { ...state.balls.cue },
+      target: { ...state.balls.target },
+      blocker1: { ...state.balls.blocker1 },
+      blocker2: { ...state.balls.blocker2 },
+    },
+  };
+}
+
+function restoreShotSetup(setup) {
+  Object.assign(state.balls.cue, setup.balls.cue);
+  Object.assign(state.balls.target, setup.balls.target);
+  Object.assign(state.balls.blocker1, setup.balls.blocker1);
+  Object.assign(state.balls.blocker2, setup.balls.blocker2);
+  state.selectedPocket = setup.selectedPocket;
+  state.spin = setup.spin;
+  state.power = setup.power;
+  state.side = setup.side;
+  state.cloth = setup.cloth;
+  state.railCount = setup.railCount;
+  state.showBlockers = setup.showBlockers;
+  state.mode = setup.mode;
+  powerSlider.value = String(state.power);
+  sideSlider.value = String(state.side);
+  railCountSelect.value = String(state.railCount);
+  showBlockersInput.checked = state.showBlockers;
+  document.querySelector("#clothSpeed").value = state.cloth;
+  [...document.querySelector("#spinButtons").children].forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.spin === state.spin);
+  });
+  modeButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.mode === state.mode));
 }
 
 function aimData() {
@@ -1098,15 +1142,20 @@ canvas.addEventListener("pointerup", () => {
 modeButtons.forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
 
 document.querySelector("#resetBtn").addEventListener("click", () => {
-  Object.assign(state.balls.cue, { x: 245, y: 250, rollAngle: 0 });
-  Object.assign(state.balls.target, { x: 560, y: 210, rollAngle: 0 });
-  Object.assign(state.balls.blocker1, { x: 420, y: 250 });
-  Object.assign(state.balls.blocker2, { x: 510, y: 320 });
-  state.selectedPocket = 5;
+  if (state.lastShotSetup) {
+    restoreShotSetup(state.lastShotSetup);
+    tableNote.textContent = "已复位到上一杆击打前的位置。";
+  } else {
+    Object.assign(state.balls.cue, { x: 245, y: 250, rollAngle: 0 });
+    Object.assign(state.balls.target, { x: 560, y: 210, rollAngle: 0 });
+    Object.assign(state.balls.blocker1, { x: 420, y: 250 });
+    Object.assign(state.balls.blocker2, { x: 510, y: 320 });
+    state.selectedPocket = 5;
+    tableNote.textContent = "拖动白球或目标球，点击袋口切换目标袋。";
+  }
   state.potted = false;
   state.cueScratched = false;
   state.animation = null;
-  tableNote.textContent = "拖动白球或目标球，点击袋口切换目标袋。";
   drawTable();
 });
 
@@ -1124,6 +1173,7 @@ document.querySelector("#newDrillBtn").addEventListener("click", () => {
   state.potted = false;
   state.cueScratched = false;
   state.animation = null;
+  state.lastShotSetup = captureShotSetup();
   drillIndex = drillOrder.indexOf(value);
   tableNote.textContent = `已切换关卡：${drillSelect.options[drillSelect.selectedIndex].text}`;
   drillSelect.value = "free";
@@ -1176,6 +1226,7 @@ document.querySelector("#playBtn").addEventListener("click", () => {
       : "目标球已经入袋，请先重置或切换关卡。";
     return;
   }
+  state.lastShotSetup = captureShotSetup();
   state.animation = createShotAnimation();
   tableNote.textContent = "击打中：目标球进袋，白球按碰撞、旋转和摩擦模拟运动。";
   requestAnimationFrame(drawTable);
