@@ -16,6 +16,46 @@
           <span></span><span></span><span></span>
         </button>
 
+        <aside class="game-menu" id="gameMenu" aria-label="训练设置" aria-hidden="true">
+          <div class="menu-group">
+            <span class="menu-label">模式</span>
+            <div class="menu-segment">
+              <button class="active" type="button" data-menu-mode="aim">瞄准</button>
+              <button type="button" data-menu-mode="angle">分离</button>
+              <button type="button" data-menu-mode="escape">解球</button>
+            </div>
+          </div>
+          <div class="menu-group">
+            <span class="menu-label">关卡</span>
+            <div class="menu-grid">
+              <button type="button" data-drill-shortcut="thin">薄球</button>
+              <button type="button" data-drill-shortcut="half">半球</button>
+              <button type="button" data-drill-shortcut="thick">厚球</button>
+              <button type="button" data-drill-shortcut="long">长台</button>
+            </div>
+          </div>
+          <div class="menu-group">
+            <span class="menu-label">球类</span>
+            <div class="menu-segment">
+              <button class="active" type="button" data-game-shortcut="chinese8">八球</button>
+              <button type="button" data-game-shortcut="nineball">九球</button>
+            </div>
+          </div>
+          <div class="menu-group">
+            <span class="menu-label">台速</span>
+            <div class="menu-segment">
+              <button type="button" data-cloth-shortcut="slow">慢</button>
+              <button class="active" type="button" data-cloth-shortcut="medium">中</button>
+              <button type="button" data-cloth-shortcut="fast">快</button>
+            </div>
+          </div>
+          <div class="menu-group compact">
+            <button class="menu-action" id="menuRailBtn" type="button">1库</button>
+            <button class="menu-action active" id="menuBlockersBtn" type="button">障碍</button>
+            <button class="menu-action" id="menuPhotoBtn" type="button">照片</button>
+          </div>
+        </aside>
+
         <div class="info-panel">
           <strong id="cutLabel">角度球</strong>
           <span id="aimHint">白球中心对准虚线假想球中心</span>

@@ -29,6 +29,14 @@ const hitDot = document.querySelector("#hitDot");
 const bigCueBall = document.querySelector("#bigCueBall");
 const confirmCueBtn = document.querySelector("#confirmCueBtn");
 const menuBtn = document.querySelector("#menuBtn");
+const gameMenu = document.querySelector("#gameMenu");
+const menuModeButtons = [...document.querySelectorAll("[data-menu-mode]")];
+const menuDrillButtons = [...document.querySelectorAll("[data-drill-shortcut]")];
+const menuGameButtons = [...document.querySelectorAll("[data-game-shortcut]")];
+const menuClothButtons = [...document.querySelectorAll("[data-cloth-shortcut]")];
+const menuRailBtn = document.querySelector("#menuRailBtn");
+const menuBlockersBtn = document.querySelector("#menuBlockersBtn");
+const menuPhotoBtn = document.querySelector("#menuPhotoBtn");
 let pendingCue = { spin: "follow", side: 0, x: 0, y: 0 };
 
 const art = {
@@ -98,6 +106,7 @@ const spinIcon = { follow: "↟", stun: "•", draw: "↡" };
 const spinName = { follow: "高杆", stun: "中杆", draw: "低杆" };
 const sideOrder = [-4, 0, 4];
 let drillIndex = -1;
+let menuOpen = false;
 
 function loadImage(src) {
   const image = new Image();
@@ -820,8 +829,33 @@ function updateToolLabels() {
     blockersBtn.classList.toggle("active", state.showBlockers);
     blockersBtn.title = state.showBlockers ? "隐藏障碍球" : "显示障碍球";
   }
+  updateMenuLabels();
   updatePowerMeter();
   updateCueDot();
+}
+
+function updateMenuLabels() {
+  menuModeButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.menuMode === state.mode));
+  menuGameButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.gameShortcut === gameTypeSelect.value));
+  menuClothButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.clothShortcut === state.cloth));
+  if (menuRailBtn) {
+    menuRailBtn.textContent = `${state.railCount}库`;
+    menuRailBtn.classList.toggle("active", state.mode === "escape");
+  }
+  if (menuBlockersBtn) menuBlockersBtn.classList.toggle("active", state.showBlockers);
+}
+
+function setMenuOpen(open) {
+  menuOpen = open;
+  gameMenu.classList.toggle("open", menuOpen);
+  gameMenu.setAttribute("aria-hidden", String(!menuOpen));
+  menuBtn.classList.toggle("active", menuOpen);
+  menuBtn.setAttribute("aria-expanded", String(menuOpen));
+}
+
+function applyDrill(value) {
+  drillSelect.value = value;
+  document.querySelector("#newDrillBtn").click();
 }
 
 function updateCueDot() {
@@ -1137,6 +1171,44 @@ blockersBtn.addEventListener("click", () => {
   drawTable();
 });
 
+menuModeButtons.forEach((btn) => {
+  btn.addEventListener("click", () => setMode(btn.dataset.menuMode));
+});
+
+menuDrillButtons.forEach((btn) => {
+  btn.addEventListener("click", () => applyDrill(btn.dataset.drillShortcut));
+});
+
+menuGameButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    gameTypeSelect.value = btn.dataset.gameShortcut;
+    gameTypeSelect.dispatchEvent(new Event("change"));
+    updateMenuLabels();
+  });
+});
+
+menuClothButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    state.cloth = btn.dataset.clothShortcut;
+    document.querySelector("#clothSpeed").value = state.cloth;
+    tableNote.textContent = `台速：${btn.textContent}`;
+    drawTable();
+  });
+});
+
+menuRailBtn.addEventListener("click", () => {
+  railCycleBtn.click();
+  setMode("escape");
+});
+
+menuBlockersBtn.addEventListener("click", () => {
+  blockersBtn.click();
+});
+
+menuPhotoBtn.addEventListener("click", () => {
+  document.querySelector("#photoBtn").click();
+});
+
 document.querySelector("#openAimViewBtn").addEventListener("click", () => {
   aimModal.classList.add("open");
   aimModal.setAttribute("aria-hidden", "false");
@@ -1196,8 +1268,12 @@ confirmCueBtn.addEventListener("click", () => {
   drawTable();
 });
 
-menuBtn.addEventListener("click", () => {
-  tableNote.textContent = "障碍球练习后续加入。";
+menuBtn.addEventListener("click", () => setMenuOpen(!menuOpen));
+
+document.addEventListener("pointerdown", (event) => {
+  if (!menuOpen) return;
+  if (gameMenu.contains(event.target) || menuBtn.contains(event.target)) return;
+  setMenuOpen(false);
 });
 
 updateToolLabels();

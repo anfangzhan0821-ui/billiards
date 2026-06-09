@@ -97,6 +97,81 @@ select {
   box-shadow: 0 0 5px rgba(255,255,255,.5);
 }
 
+.game-menu {
+  position: absolute;
+  left: 224px;
+  top: 94px;
+  z-index: 12;
+  width: 164px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  background: rgba(8, 10, 22, .9);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, .42);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.game-menu.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.menu-group {
+  display: grid;
+  gap: 6px;
+}
+
+.menu-group.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.menu-label {
+  color: rgba(255, 250, 240, .62);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.menu-segment,
+.menu-grid {
+  display: grid;
+  gap: 5px;
+}
+
+.menu-segment {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.menu-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.game-menu button {
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .08);
+  color: rgba(255, 250, 240, .86);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.game-menu button.active {
+  border-color: rgba(105, 201, 255, .7);
+  background: rgba(105, 201, 255, .2);
+  color: #fff;
+}
+
+.menu-action {
+  padding: 0 4px;
+}
+
 .info-panel {
   position: absolute;
   left: 50%;
@@ -416,6 +491,12 @@ select {
   .power-meter,
   .reset-fab {
     left: 24px;
+  }
+
+  .game-menu {
+    left: 86px;
+    top: 80px;
+    width: 164px;
   }
 
   .info-panel {
