@@ -99,28 +99,33 @@
     return len(v(add(a, mul(ab, t)), p));
   }
 
-  function inPocketMouth(p, pocket, table, radius) {
+  function inPocketMouth(p, pocket, table, radius, velocity) {
     const box = railBox(table, radius);
     const isMiddlePocket = Math.abs(pocket.x - box.midX) < table.w * 0.12;
     const onLeft = pocket.x < box.midX;
     const onTop = pocket.y < box.midY;
+    const toPocket = norm(v(p, pocket));
+    const speed = len(velocity);
+    const movingIntoPocket = speed < EPS || dot(norm(velocity), toPocket) > 0.32;
 
     if (isMiddlePocket) {
       const alongRail = Math.abs(p.x - pocket.x) <= box.sideOpen * 0.9;
       const inMouth = onTop ? p.y <= box.top + radius * 0.5 : p.y >= box.bottom - radius * 0.5;
-      return alongRail && inMouth && len(v(p, pocket)) <= radius * 3.1;
+      return movingIntoPocket && alongRail && inMouth && len(v(p, pocket)) <= radius * 2.7;
     }
 
-    const horizontalMouth = onLeft ? p.x <= box.left + box.cornerOpen : p.x >= box.right - box.cornerOpen;
-    const verticalMouth = onTop ? p.y <= box.top + box.cornerOpen : p.y >= box.bottom - box.cornerOpen;
-    return horizontalMouth && verticalMouth && len(v(p, pocket)) <= radius * 4.8;
+    const horizontalDepth = onLeft ? box.left - p.x : p.x - box.right;
+    const verticalDepth = onTop ? box.top - p.y : p.y - box.bottom;
+    const horizontalMouth = horizontalDepth >= -radius * 0.4 && horizontalDepth <= radius * 2.8;
+    const verticalMouth = verticalDepth >= -radius * 2.8 && verticalDepth <= radius * 2.8;
+    return horizontalMouth && verticalMouth && len(v(p, pocket)) <= radius * 4.4;
   }
 
-  function pocketHit(prev, p, pockets, radius, table) {
+  function pocketHit(prev, p, pockets, radius, table, velocity) {
     if (!Array.isArray(pockets)) return null;
     const threshold = radius * 1.7;
     for (let i = 0; i < pockets.length; i++) {
-      if (distanceToSegment(pockets[i], prev, p) <= threshold || inPocketMouth(p, pockets[i], table, radius)) {
+      if (distanceToSegment(pockets[i], prev, p) <= threshold || inPocketMouth(p, pockets[i], table, radius, velocity)) {
         return { index: i, point: pockets[i] };
       }
     }
@@ -212,7 +217,7 @@
       const step = mul(velocity, dt);
       p = add(p, step);
       rollAngle += len(step) / radius;
-      const hit = pocketHit(previous, p, pockets, radius, table);
+      const hit = pocketHit(previous, p, pockets, radius, table, velocity);
       if (hit) {
         t += dt;
         const entry = { ...p };
