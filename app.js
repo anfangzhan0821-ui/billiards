@@ -51,7 +51,7 @@ const ballFrames = {
 };
 const BALL_DRAW_SCALE = 1.96;
 const IMPACT_HOLD_SECONDS = 0.08;
-const POCKET_DROP_SECONDS = 0.42;
+const POCKET_DROP_SECONDS = 0.72;
 
 const state = {
   mode: "aim",
@@ -245,6 +245,8 @@ function createShotAnimation() {
   const cueAfterTimed = cueAfter.map((point) => ({ ...point, t: point.t + cuePreDuration, rollAngle: point.rollAngle + cuePreDistance / table.ballR }));
   const targetPath = createObjectBallPath(data).map((point) => ({ ...point, t: point.t + cuePreDuration }));
   const cuePocket = cueAfterTimed.find((point) => point.pocketed);
+  const cuePocketIndex = cueAfterTimed.findIndex((point) => point.pocketed);
+  const cuePocketEntry = cuePocketIndex > 0 ? norm(v(cueAfterTimed[cuePocketIndex - 1], cuePocket)) : data.cueToGhost;
   const cueScratched = Boolean(cuePocket);
   const cuePocketTime = cuePocket ? cuePocket.t : Infinity;
   const cueEnd = cueAfterTimed[cueAfterTimed.length - 1];
@@ -260,10 +262,16 @@ function createShotAnimation() {
     targetPath,
     targetStart: { ...state.balls.target },
     targetEnd,
-    targetPocket: { ...data.pocket },
+    targetPocket: {
+      ...data.pocket,
+      rollAngle: targetEnd.rollAngle,
+      pocketAngle: Math.atan2(-data.objectToPocket.y, -data.objectToPocket.x),
+    },
     targetPocketTime,
     cueEnd,
-    cuePocket,
+    cuePocket: cuePocket
+      ? { ...cuePocket, pocketAngle: Math.atan2(-cuePocketEntry.y, -cuePocketEntry.x) }
+      : cuePocket,
     cuePocketTime,
     cueScratched,
     startedAt: performance.now(),
@@ -621,24 +629,55 @@ function drawBall(p, r, fill, cue = false, stroke = "rgba(0,0,0,.42)") {
 }
 
 function drawPocketDropBall(p, r, fill, cue, progress, stroke) {
-  const eased = 1 - Math.pow(1 - Math.max(0, Math.min(1, progress)), 2);
-  const scale = 1 - eased * 0.72;
-  const sink = eased * r * 0.35;
+  const t = Math.max(0, Math.min(1, progress));
+  const orbitPhase = Math.min(1, t / 0.72);
+  const fadePhase = Math.max(0, (t - 0.48) / 0.52);
+  const orbitEase = 1 - Math.pow(1 - orbitPhase, 2);
+  const fadeEase = fadePhase * fadePhase * (3 - 2 * fadePhase);
+  const side = pocketSpinDirection(p);
+  const angle = (p.pocketAngle || 0) + side * orbitEase * Math.PI * 1.34;
+  const orbitRadius = r * (0.48 - 0.28 * orbitEase);
+  const sink = r * (0.15 + fadeEase * 0.72);
+  const scale = 1 - fadeEase * 0.78;
+  const alpha = 1 - fadeEase * 0.92;
+  const ball = {
+    x: p.x + Math.cos(angle) * orbitRadius,
+    y: p.y + Math.sin(angle) * orbitRadius + sink,
+    rollAngle: (p.rollAngle || 0) + side * orbitEase * Math.PI * 2.4,
+  };
 
   ctx.save();
-  ctx.globalAlpha = 1 - eased * 0.82;
-  ctx.translate(p.x, p.y + sink);
-  ctx.scale(scale, scale);
-  drawBall({ x: 0, y: 0, rollAngle: p.rollAngle || 0 }, r, fill, cue, stroke);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = eased * 0.5;
-  ctx.fillStyle = "#020202";
+  ctx.globalAlpha = 0.22 + fadeEase * 0.5;
+  ctx.fillStyle = "#010101";
   ctx.beginPath();
-  ctx.arc(p.x, p.y, r * (0.7 + eased * 0.18), 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, r * (1.08 + fadeEase * 0.22), 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(ball.x, ball.y);
+  ctx.scale(scale, scale);
+  drawBall({ x: 0, y: 0, rollAngle: ball.rollAngle }, r, fill, cue, stroke);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.34 + fadeEase * 0.38;
+  const lip = ctx.createRadialGradient(p.x, p.y, r * 0.42, p.x, p.y, r * 1.28);
+  lip.addColorStop(0, "rgba(0,0,0,0)");
+  lip.addColorStop(0.56, "rgba(0,0,0,.28)");
+  lip.addColorStop(1, "rgba(0,0,0,.78)");
+  ctx.fillStyle = lip;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r * 1.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function pocketSpinDirection(p) {
+  const isRight = p.x > table.x + table.w / 2;
+  const isBottom = p.y > table.y + table.h / 2;
+  return isRight === isBottom ? 1 : -1;
 }
 
 function drawBallContactShadow(p, r) {
