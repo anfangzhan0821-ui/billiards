@@ -215,6 +215,13 @@
       const hit = pocketHit(previous, p, pockets, radius, table);
       if (hit) {
         t += dt;
+        const entry = { ...p };
+        const entrySpeed = len(velocity);
+        const pocketDistance = len(v(entry, hit.point));
+        const pocketTravelTime = Math.max(0.16, Math.min(0.34, pocketDistance / Math.max(entrySpeed * 0.45, 130)));
+        points.push({ ...entry, t, speed: entrySpeed * 0.45, rollAngle, pocketEntry: true, pocketIndex: hit.index });
+        t += pocketTravelTime;
+        rollAngle += pocketDistance / radius;
         points.push({ ...hit.point, t, speed: 0, rollAngle, pocketed: true, pocketIndex: hit.index });
         break;
       }
