@@ -890,12 +890,12 @@ function updateOverlapPreview(overlap) {
   if (!previewCueBall || !previewObjectBall || !overlapPreview) return;
   const ballSize = parseFloat(getComputedStyle(previewCueBall).width) || 66;
   const baseLeft = (overlapPreview.clientWidth - ballSize) / 2;
-  const side = state.balls.cue.x >= state.balls.target.x ? 1 : -1;
-  const gap = (1 - overlap / 100) * ballSize * 0.92;
+  const sideProgress = Math.max(-1, Math.min(1, (state.balls.cue.x - state.balls.target.x) / (table.w * 0.28)));
+  const gap = (1 - overlap / 100) * ballSize * 0.92 * sideProgress;
   previewObjectBall.style.left = `${baseLeft}px`;
-  previewCueBall.style.left = `${baseLeft + side * gap}px`;
-  previewCueBall.style.zIndex = side > 0 ? "3" : "1";
-  previewObjectBall.style.zIndex = "2";
+  previewCueBall.style.left = `${baseLeft + gap}px`;
+  previewCueBall.style.zIndex = "3";
+  previewObjectBall.style.zIndex = "1";
 }
 
 function updatePowerMeter() {

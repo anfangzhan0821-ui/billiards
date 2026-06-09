@@ -290,10 +290,12 @@ select {
   height: 66px;
   border-radius: 50%;
   box-shadow: inset -15px -18px 22px rgba(0,0,0,.32), inset 8px 8px 18px rgba(255,255,255,.5), 0 5px 9px rgba(0,0,0,.42);
+  transition: left 150ms ease-out;
 }
 
 .object-ball {
   left: 42px;
+  z-index: 1;
   background: radial-gradient(circle at 35% 30%, #fff7ad 0 15%, #f3bd1e 36%, #df9b00 62%, #8b5200 100%);
 }
 
@@ -316,6 +318,7 @@ select {
 
 .cue-ball {
   left: 84px;
+  z-index: 3;
   background: radial-gradient(circle at 34% 30%, #fff, #e9e6d6 54%, #aea990);
 }
 
