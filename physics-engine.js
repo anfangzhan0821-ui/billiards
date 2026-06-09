@@ -39,54 +39,50 @@
     return { x: -a.y, y: a.x };
   }
 
-  function inPocketLane(p, pocket, table, radius) {
-    const minX = table.x + radius;
-    const maxX = table.x + table.w - radius;
-    const minY = table.y + radius;
-    const maxY = table.y + table.h - radius;
-    const midX = table.x + table.w / 2;
-    const midY = table.y + table.h / 2;
-    const lane = radius * 2.15;
-    const cornerLane = radius * 2.35;
-    const isSidePocket = Math.abs(pocket.x - midX) < table.w * 0.12;
-    const pocketOnLeft = pocket.x < midX;
-    const pocketOnTop = pocket.y < midY;
-
-    if (isSidePocket) {
-      const outsideTop = pocketOnTop && p.y < minY;
-      const outsideBottom = !pocketOnTop && p.y > maxY;
-      return Math.abs(p.x - pocket.x) <= lane && (outsideTop || outsideBottom);
-    }
-
-    const outsideX = pocketOnLeft ? p.x < minX : p.x > maxX;
-    const outsideY = pocketOnTop ? p.y < minY : p.y > maxY;
-    return outsideX && outsideY && Math.abs(p.x - pocket.x) <= cornerLane && Math.abs(p.y - pocket.y) <= cornerLane;
+  function railBox(table, radius) {
+    return {
+      left: table.x + radius,
+      right: table.x + table.w - radius,
+      top: table.y + radius,
+      bottom: table.y + table.h - radius,
+      midX: table.x + table.w / 2,
+      midY: table.y + table.h / 2,
+      cornerOpen: radius * 4.2,
+      sideOpen: radius * 2.65,
+    };
   }
 
-  function axisHasPocketLane(p, pockets, table, radius, axis) {
+  function isRailPocketOpening(p, pockets, table, radius, axis) {
     if (!Array.isArray(pockets)) return false;
+    const box = railBox(table, radius);
     return pockets.some((pocket) => {
-      if (!inPocketLane(p, pocket, table, radius)) return false;
-      if (axis === "y") return pocket.y < table.y + table.h / 2 || pocket.y > table.y + table.h / 2;
-      return pocket.x < table.x + table.w / 2 || pocket.x > table.x + table.w / 2;
+      const isMiddlePocket = Math.abs(pocket.x - box.midX) < table.w * 0.12;
+      const onLeft = pocket.x < box.midX;
+      const onTop = pocket.y < box.midY;
+      if (axis === "y") {
+        const onSameHorizontalRail = (p.y < box.top && onTop) || (p.y > box.bottom && !onTop);
+        if (!onSameHorizontalRail) return false;
+        if (isMiddlePocket) return Math.abs(p.x - pocket.x) <= box.sideOpen;
+        return onLeft ? p.x <= box.left + box.cornerOpen : p.x >= box.right - box.cornerOpen;
+      }
+      const onSameVerticalRail = (p.x < box.left && onLeft) || (p.x > box.right && !onLeft);
+      if (!onSameVerticalRail || isMiddlePocket) return false;
+      return onTop ? p.y <= box.top + box.cornerOpen : p.y >= box.bottom - box.cornerOpen;
     });
   }
 
   function clampTable(p, vel, rollVel, table, radius, pockets) {
     let bounced = false;
-    const minX = table.x + radius;
-    const maxX = table.x + table.w - radius;
-    const minY = table.y + radius;
-    const maxY = table.y + table.h - radius;
-    if ((p.x < minX || p.x > maxX) && !axisHasPocketLane(p, pockets, table, radius, "x")) {
-      p.x = Math.max(minX, Math.min(maxX, p.x));
+    const box = railBox(table, radius);
+    if ((p.x < box.left || p.x > box.right) && !isRailPocketOpening(p, pockets, table, radius, "x")) {
+      p.x = Math.max(box.left, Math.min(box.right, p.x));
       vel.x *= -0.74;
       vel.y *= 0.86;
       rollVel.x *= -0.58;
       bounced = true;
     }
-    if ((p.y < minY || p.y > maxY) && !axisHasPocketLane(p, pockets, table, radius, "y")) {
-      p.y = Math.max(minY, Math.min(maxY, p.y));
+    if ((p.y < box.top || p.y > box.bottom) && !isRailPocketOpening(p, pockets, table, radius, "y")) {
+      p.y = Math.max(box.top, Math.min(box.bottom, p.y));
       vel.y *= -0.74;
       vel.x *= 0.86;
       rollVel.y *= -0.58;
@@ -103,11 +99,30 @@
     return len(v(add(a, mul(ab, t)), p));
   }
 
-  function pocketHit(prev, p, pockets, radius) {
+  function inPocketMouth(p, pocket, table, radius) {
+    const box = railBox(table, radius);
+    const isMiddlePocket = Math.abs(pocket.x - box.midX) < table.w * 0.12;
+    const onLeft = pocket.x < box.midX;
+    const onTop = pocket.y < box.midY;
+
+    if (isMiddlePocket) {
+      const alongRail = Math.abs(p.x - pocket.x) <= box.sideOpen * 0.9;
+      const inMouth = onTop ? p.y <= box.top + radius * 0.5 : p.y >= box.bottom - radius * 0.5;
+      return alongRail && inMouth && len(v(p, pocket)) <= radius * 3.1;
+    }
+
+    const horizontalMouth = onLeft ? p.x <= box.left + box.cornerOpen : p.x >= box.right - box.cornerOpen;
+    const verticalMouth = onTop ? p.y <= box.top + box.cornerOpen : p.y >= box.bottom - box.cornerOpen;
+    return horizontalMouth && verticalMouth && len(v(p, pocket)) <= radius * 4.8;
+  }
+
+  function pocketHit(prev, p, pockets, radius, table) {
     if (!Array.isArray(pockets)) return null;
-    const threshold = radius * 1.28;
+    const threshold = radius * 1.7;
     for (let i = 0; i < pockets.length; i++) {
-      if (distanceToSegment(pockets[i], prev, p) <= threshold) return { index: i, point: pockets[i] };
+      if (distanceToSegment(pockets[i], prev, p) <= threshold || inPocketMouth(p, pockets[i], table, radius)) {
+        return { index: i, point: pockets[i] };
+      }
     }
     return null;
   }
@@ -197,7 +212,7 @@
       const step = mul(velocity, dt);
       p = add(p, step);
       rollAngle += len(step) / radius;
-      const hit = pocketHit(previous, p, pockets, radius);
+      const hit = pocketHit(previous, p, pockets, radius, table);
       if (hit) {
         t += dt;
         points.push({ ...hit.point, t, speed: 0, rollAngle, pocketed: true, pocketIndex: hit.index });
