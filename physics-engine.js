@@ -106,19 +106,24 @@
     const onTop = pocket.y < box.midY;
     const toPocket = norm(v(p, pocket));
     const speed = len(velocity);
-    const movingIntoPocket = speed < EPS || dot(norm(velocity), toPocket) > 0.32;
+    const movingIntoPocket = speed < EPS || dot(norm(velocity), toPocket) > 0.2;
+    const dist = len(v(p, pocket));
 
     if (isMiddlePocket) {
-      const alongRail = Math.abs(p.x - pocket.x) <= box.sideOpen * 0.9;
-      const inMouth = onTop ? p.y <= box.top + radius * 0.5 : p.y >= box.bottom - radius * 0.5;
-      return movingIntoPocket && alongRail && inMouth && len(v(p, pocket)) <= radius * 2.7;
+      const alongRail = Math.abs(p.x - pocket.x) <= box.sideOpen * 1.1;
+      const depthFromRail = onTop ? box.top - p.y : p.y - box.bottom;
+      const inMouth = depthFromRail >= -radius * 1.8 && depthFromRail <= radius * 2.8;
+      return movingIntoPocket && alongRail && inMouth && dist <= radius * 2.8;
     }
 
-    const horizontalDepth = onLeft ? box.left - p.x : p.x - box.right;
-    const verticalDepth = onTop ? box.top - p.y : p.y - box.bottom;
-    const horizontalMouth = horizontalDepth >= -radius * 0.4 && horizontalDepth <= radius * 2.8;
-    const verticalMouth = verticalDepth >= -radius * 2.8 && verticalDepth <= radius * 2.8;
-    return horizontalMouth && verticalMouth && len(v(p, pocket)) <= radius * 4.4;
+    const hDepth = onLeft ? box.left - p.x : p.x - box.right;
+    const vDepth = onTop ? box.top - p.y : p.y - box.bottom;
+    return movingIntoPocket
+      && hDepth >= -radius * 1.8
+      && hDepth <= radius * 2.8
+      && vDepth >= -radius * 1.8
+      && vDepth <= radius * 2.8
+      && dist <= radius * 2.2;
   }
 
   function pocketHit(prev, p, pockets, radius, table, velocity) {

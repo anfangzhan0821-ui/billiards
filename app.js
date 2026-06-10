@@ -85,18 +85,18 @@ const table = {
   h: 388,
   ballR: 15,
   railLeft: 66,
-  railRight: 858,
-  railTop: 54,
-  railBottom: 453,
+  railRight: 840,
+  railTop: 51,
+  railBottom: 442,
 };
 
 const pockets = [
-  { x: 52, y: 43 },
-  { x: 450, y: 33 },
-  { x: 849, y: 42 },
-  { x: 51, y: 454 },
-  { x: 451, y: 463 },
-  { x: 849, y: 455 },
+  { x: 52, y: 40 },
+  { x: 450, y: 29 },
+  { x: 849, y: 40 },
+  { x: 52, y: 453 },
+  { x: 450, y: 464 },
+  { x: 849, y: 453 },
 ];
 
 const drills = {
