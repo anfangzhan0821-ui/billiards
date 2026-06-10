@@ -84,6 +84,10 @@ const table = {
   w: 788,
   h: 388,
   ballR: 15,
+  railLeft: 66,
+  railRight: 858,
+  railTop: 54,
+  railBottom: 453,
 };
 
 const pockets = [
@@ -138,8 +142,8 @@ function norm(a) {
 }
 
 function clampBall(ball) {
-  ball.x = Math.max(table.x + table.ballR, Math.min(table.x + table.w - table.ballR, ball.x));
-  ball.y = Math.max(table.y + table.ballR, Math.min(table.y + table.h - table.ballR, ball.y));
+  ball.x = Math.max(table.railLeft, Math.min(table.railRight, ball.x));
+  ball.y = Math.max(table.railTop, Math.min(table.railBottom, ball.y));
   return ball;
 }
 
@@ -359,9 +363,9 @@ function escapePath() {
   const target = state.balls.target;
   const rails = Number(state.railCount);
   let mirrored = { ...target };
-  if (rails >= 1) mirrored = { x: mirrored.x, y: 2 * table.y - mirrored.y };
-  if (rails >= 2) mirrored = { x: 2 * (table.x + table.w) - mirrored.x, y: mirrored.y };
-  if (rails >= 3) mirrored = { x: mirrored.x, y: 2 * (table.y + table.h) - mirrored.y };
+  if (rails >= 1) mirrored = { x: mirrored.x, y: 2 * table.railTop - mirrored.y };
+  if (rails >= 2) mirrored = { x: 2 * table.railRight - mirrored.x, y: mirrored.y };
+  if (rails >= 3) mirrored = { x: mirrored.x, y: 2 * table.railBottom - mirrored.y };
 
   const dir = norm(v(cue, mirrored));
   const points = [cue];
@@ -369,13 +373,13 @@ function escapePath() {
   let d = { ...dir };
 
   for (let i = 0; i < rails; i++) {
-    const tx = d.x > 0 ? (table.x + table.w - current.x) / d.x : (table.x - current.x) / d.x;
-    const ty = d.y > 0 ? (table.y + table.h - current.y) / d.y : (table.y - current.y) / d.y;
+    const tx = d.x > 0 ? (table.railRight - current.x) / d.x : (table.railLeft - current.x) / d.x;
+    const ty = d.y > 0 ? (table.railBottom - current.y) / d.y : (table.railTop - current.y) / d.y;
     const t = Math.min(tx > 0 ? tx : Infinity, ty > 0 ? ty : Infinity);
     current = add(current, mul(d, t));
     points.push(current);
-    if (Math.abs(current.x - table.x) < 0.5 || Math.abs(current.x - table.x - table.w) < 0.5) d.x *= -1;
-    if (Math.abs(current.y - table.y) < 0.5 || Math.abs(current.y - table.y - table.h) < 0.5) d.y *= -1;
+    if (Math.abs(current.x - table.railLeft) < 0.5 || Math.abs(current.x - table.railRight) < 0.5) d.x *= -1;
+    if (Math.abs(current.y - table.railTop) < 0.5 || Math.abs(current.y - table.railBottom) < 0.5) d.y *= -1;
   }
   points.push(target);
   return points;

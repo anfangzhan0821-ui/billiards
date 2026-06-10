@@ -41,10 +41,10 @@
 
   function railBox(table, radius) {
     return {
-      left: table.x + radius,
-      right: table.x + table.w - radius,
-      top: table.y + radius,
-      bottom: table.y + table.h - radius,
+      left: table.railLeft ?? table.x + radius,
+      right: table.railRight ?? table.x + table.w - radius,
+      top: table.railTop ?? table.y + radius,
+      bottom: table.railBottom ?? table.y + table.h - radius,
       midX: table.x + table.w / 2,
       midY: table.y + table.h / 2,
       cornerOpen: radius * 4.2,
