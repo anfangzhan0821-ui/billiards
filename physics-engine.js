@@ -52,6 +52,17 @@
     };
   }
 
+  function tableCenter(table) {
+    return {
+      x: table.midX ?? table.x + table.w / 2,
+      y: table.midY ?? table.y + table.h / 2,
+    };
+  }
+
+  function boundarySegments(table) {
+    return table.boundarySegments || [];
+  }
+
   function isRailPocketOpening(p, pockets, table, radius, axis) {
     if (!Array.isArray(pockets)) return false;
     const box = railBox(table, radius);
@@ -73,6 +84,27 @@
 
   function clampTable(p, vel, rollVel, table, radius, pockets) {
     let bounced = false;
+    const center = tableCenter(table);
+    boundarySegments(table).forEach((segment) => {
+      const closest = closestPointOnSegment(p, segment.a, segment.b);
+      const toBall = v(closest, p);
+      const dist = len(toBall);
+      if (dist >= radius || inPocketMouth(p, nearestPocket(closest, pockets), table, radius, vel)) return;
+      const inward = norm(v(closest, center));
+      const correction = radius - dist + 0.15;
+      p.x += inward.x * correction;
+      p.y += inward.y * correction;
+      const approach = dot(vel, inward);
+      if (approach < 0) {
+        vel.x -= (1.72 * approach) * inward.x;
+        vel.y -= (1.72 * approach) * inward.y;
+        rollVel.x -= (0.55 * approach) * inward.x;
+        rollVel.y -= (0.55 * approach) * inward.y;
+        bounced = true;
+      }
+    });
+    if (bounced) return true;
+
     const box = railBox(table, radius);
     if ((p.x < box.left || p.x > box.right) && !isRailPocketOpening(p, pockets, table, radius, "x")) {
       p.x = Math.max(box.left, Math.min(box.right, p.x));
@@ -92,14 +124,26 @@
   }
 
   function distanceToSegment(p, a, b) {
+    return len(v(closestPointOnSegment(p, a, b), p));
+  }
+
+  function closestPointOnSegment(p, a, b) {
     const ab = v(a, b);
     const abLen2 = dot(ab, ab);
-    if (abLen2 < EPS) return len(v(a, p));
+    if (abLen2 < EPS) return { ...a };
     const t = Math.max(0, Math.min(1, dot(v(a, p), ab) / abLen2));
-    return len(v(add(a, mul(ab, t)), p));
+    return add(a, mul(ab, t));
+  }
+
+  function nearestPocket(p, pockets) {
+    if (!Array.isArray(pockets) || !pockets.length) return null;
+    return pockets.reduce((closest, pocket) => (
+      len(v(p, pocket)) < len(v(p, closest)) ? pocket : closest
+    ), pockets[0]);
   }
 
   function inPocketMouth(p, pocket, table, radius, velocity) {
+    if (!pocket) return false;
     const box = railBox(table, radius);
     const isMiddlePocket = Math.abs(pocket.x - box.midX) < table.w * 0.12;
     const onLeft = pocket.x < box.midX;
@@ -173,18 +217,25 @@
     const pockets = options.pockets || [];
     const normal = data.objectToPocket;
     const tangent = perp(normal);
-    const tangentSpeed = dot(data.cueToGhost, tangent);
-    const tangentDir = mul(tangent, tangentSpeed >= 0 ? 1 : -1);
+    const tangentComponent = dot(data.cueToGhost, tangent);
+    const normalComponent = Math.max(0, dot(data.cueToGhost, normal));
     const start = { ...data.ghost };
     const clothScale = cloth === "fast" ? 1.18 : cloth === "slow" ? 0.82 : 1;
     const powerSpeed = (250 + power * 48) * clothScale;
-    const normalLeak = Math.max(0, dot(data.cueToGhost, normal)) * 0.09;
-    let velocity = add(mul(tangentDir, Math.abs(tangentSpeed) * powerSpeed * 0.95), mul(normal, normalLeak * powerSpeed));
+    const spinResidual = spin === "follow"
+      ? normalComponent * powerSpeed * 0.24
+      : spin === "draw"
+        ? -normalComponent * powerSpeed * 0.2
+        : normalComponent * powerSpeed * 0.035;
+    let velocity = add(
+      mul(tangent, tangentComponent * powerSpeed * 0.98),
+      mul(normal, spinResidual),
+    );
 
     // Roll velocity represents R * omega at the cloth contact patch.
-    const spinRatio = spin === "follow" ? 1.45 : spin === "draw" ? -1.7 : 0.03;
+    const spinRatio = spin === "follow" ? 1.25 : spin === "draw" ? -1.35 : 0.02;
     let rollVelocity = mul(data.cueToGhost, powerSpeed * spinRatio);
-    let sideSpin = side * 0.18 * powerSpeed;
+    let sideSpin = side * 0.075 * powerSpeed;
     let p = { ...start };
     let rollAngle = options.rollAngle || 0;
     let t = 0;
@@ -213,8 +264,9 @@
       }
 
       if (Math.abs(sideSpin) > 0.01 && speed > 18) {
-        const swerve = Math.min(Math.abs(sideSpin) * 0.00022 * speed * dt, 0.9) * Math.sign(sideSpin);
-        velocity = add(velocity, mul(tangentDir, swerve * 60));
+        const curveDir = perp(norm(velocity));
+        const swerve = Math.min(Math.abs(sideSpin) * 0.00008 * speed * dt, 0.42) * Math.sign(sideSpin);
+        velocity = add(velocity, mul(curveDir, swerve * 60));
         sideSpin *= 0.992;
       }
 

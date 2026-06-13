@@ -74,7 +74,7 @@ const state = {
   lastShotSetup: null,
   balls: {
     cue: { x: 528, y: 335, color: "#f4f5ee", label: "", rollAngle: 0 },
-    target: { x: 602, y: 335, color: "#f0c247", label: "1", rollAngle: 0 },
+    target: { x: 602, y: 335, color: "#d3221d", label: "", rollAngle: 0 },
     blocker1: { x: 660, y: 385, color: "#d53f3f", label: "障" },
     blocker2: { x: 785, y: 455, color: "#3359d6", label: "障" },
   },
@@ -92,6 +92,26 @@ const table = {
   railRight: 1289.99,
   railTop: 92.6187,
   railBottom: 674.577,
+  boundarySegments: [
+    [{ x: 92.9888, y: 72.1624 }, { x: 113.445, y: 92.6185 }],
+    [{ x: 113.445, y: 92.6185 }, { x: 659.844, y: 92.6187 }],
+    [{ x: 659.844, y: 92.6187 }, { x: 671.77, y: 66.5986 }],
+    [{ x: 712.297, y: 66.0278 }, { x: 724.248, y: 92.6184 }],
+    [{ x: 724.248, y: 92.6184 }, { x: 1270.65, y: 92.6182 }],
+    [{ x: 1270.65, y: 92.6182 }, { x: 1291.1, y: 72.1621 }],
+    [{ x: 1291.1, y: 695.032 }, { x: 1270.65, y: 674.576 }],
+    [{ x: 1270.65, y: 674.576 }, { x: 724.248, y: 674.576 }],
+    [{ x: 724.248, y: 674.576 }, { x: 710.963, y: 703.232 }],
+    [{ x: 673.044, y: 702.951 }, { x: 659.844, y: 674.577 }],
+    [{ x: 659.844, y: 674.577 }, { x: 113.445, y: 674.577 }],
+    [{ x: 113.445, y: 674.577 }, { x: 92.9888, y: 695.033 }],
+    [{ x: 71.6747, y: 94.4243 }, { x: 94.1014, y: 116.949 }],
+    [{ x: 94.1014, y: 116.949 }, { x: 94.1014, y: 652.404 }],
+    [{ x: 94.1014, y: 652.404 }, { x: 71.4478, y: 675.057 }],
+    [{ x: 1312.42, y: 94.4243 }, { x: 1289.99, y: 116.949 }],
+    [{ x: 1289.99, y: 116.949 }, { x: 1289.99, y: 652.404 }],
+    [{ x: 1289.99, y: 652.404 }, { x: 1312.64, y: 675.057 }],
+  ].map(([a, b]) => ({ a, b })),
 };
 
 const pockets = [
@@ -148,7 +168,32 @@ function norm(a) {
 function clampBall(ball) {
   ball.x = Math.max(table.railLeft, Math.min(table.railRight, ball.x));
   ball.y = Math.max(table.railTop, Math.min(table.railBottom, ball.y));
+  keepBallInsideBoundary(ball);
   return ball;
+}
+
+function closestPointOnSegment(p, a, b) {
+  const ab = v(a, b);
+  const abLen2 = ab.x * ab.x + ab.y * ab.y;
+  if (!abLen2) return { ...a };
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / abLen2));
+  return add(a, mul(ab, t));
+}
+
+function keepBallInsideBoundary(ball) {
+  const center = { x: table.midX, y: table.midY };
+  for (let pass = 0; pass < 3; pass++) {
+    table.boundarySegments.forEach((segment) => {
+      const closest = closestPointOnSegment(ball, segment.a, segment.b);
+      const delta = v(closest, ball);
+      const dist = len(delta);
+      if (dist >= table.ballR || dist < 0.001) return;
+      const inward = norm(v(closest, center));
+      const correction = table.ballR - dist + 0.2;
+      ball.x += inward.x * correction;
+      ball.y += inward.y * correction;
+    });
+  }
 }
 
 function captureShotSetup() {
@@ -398,6 +443,7 @@ function drawTable() {
   if (art.table.complete && art.table.naturalWidth) {
     ctx.drawImage(art.table, 0, 0, canvas.width, canvas.height);
   }
+  coverCornerWhites();
 
   if (!state.potted) drawSightLines();
   drawBalls();
@@ -405,6 +451,33 @@ function drawTable() {
     drawShotAnimation();
   }
   updateAimView();
+}
+
+function coverCornerWhites() {
+  const cornerIndexes = new Set([0, 2, 3, 5]);
+  ctx.save();
+  pockets.forEach((pocket, index) => {
+    if (!cornerIndexes.has(index)) return;
+    ctx.fillStyle = "#150c07";
+    ctx.beginPath();
+    ctx.roundRect(pocket.x - 49, pocket.y - 49, 98, 98, 19);
+    ctx.fill();
+
+    const grad = ctx.createRadialGradient(pocket.x - 7, pocket.y - 8, 8, pocket.x, pocket.y, 52);
+    grad.addColorStop(0, "#1c120b");
+    grad.addColorStop(0.58, "#0d0704");
+    grad.addColorStop(1, "rgba(13,7,4,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(pocket.x, pocket.y, 52, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#120a06";
+    ctx.beginPath();
+    ctx.arc(pocket.x, pocket.y, 38, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
 }
 
 function drawCoverImage(image, x, y, w, h) {
@@ -1222,6 +1295,33 @@ powerSlider.addEventListener("input", (event) => {
   state.power = Number(event.target.value);
   updatePowerMeter();
   drawTable();
+});
+
+function setPowerFromPointer(event) {
+  const rect = powerSlider.parentElement.getBoundingClientRect();
+  const ratio = 1 - Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+  state.power = Math.max(1, Math.min(10, Math.round(1 + ratio * 9)));
+  powerSlider.value = String(state.power);
+  updatePowerMeter();
+  tableNote.textContent = `力度：${state.power}`;
+  drawTable();
+}
+
+powerSlider.parentElement.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  powerSlider.parentElement.setPointerCapture(event.pointerId);
+  setPowerFromPointer(event);
+});
+
+powerSlider.parentElement.addEventListener("pointermove", (event) => {
+  if (!powerSlider.parentElement.hasPointerCapture(event.pointerId)) return;
+  setPowerFromPointer(event);
+});
+
+powerSlider.parentElement.addEventListener("pointerup", (event) => {
+  if (powerSlider.parentElement.hasPointerCapture(event.pointerId)) {
+    powerSlider.parentElement.releasePointerCapture(event.pointerId);
+  }
 });
 
 sideSlider.addEventListener("input", (event) => {

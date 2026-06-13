@@ -36,23 +36,26 @@ select {
   min-height: 100dvh;
   display: grid;
   place-items: center;
+  background: #252048;
 }
 
 .table-wrap {
   position: relative;
-  width: 100%;
-  min-height: 100dvh;
+  width: min(100dvw, calc(100dvh * 2.133333));
+  height: min(100dvh, calc(100dvw / 2.133333));
+  min-height: 0;
   padding: 0;
   background: #252048;
   touch-action: none;
+  overflow: hidden;
 }
 
 .table-viewport {
   position: absolute;
-  left: clamp(150px, 14.01dvw, 269px);
-  top: clamp(82px, 12.33dvh, 111px);
-  width: min(71.98dvw, calc(85.56dvh * 1.794805), 1382px);
-  min-width: 520px;
+  left: 14.0104%;
+  top: 12.3333%;
+  width: 71.9792%;
+  min-width: 0;
   height: auto;
   aspect-ratio: 1382 / 770;
   filter: drop-shadow(0 26px 32px rgba(0, 0, 0, .58));
@@ -73,11 +76,12 @@ select {
 
 .menu-btn {
   position: absolute;
-  left: clamp(42px, 5.78dvw, 111px);
-  top: clamp(16px, 2.11dvh, 19px);
+  left: 5.7813%;
+  top: 2.1111%;
   z-index: 8;
-  width: 74px;
-  height: 74px;
+  width: 3.8542%;
+  aspect-ratio: 1;
+  height: auto;
   border: 0;
   border-radius: 5px;
   background: #4567c7;
@@ -86,17 +90,17 @@ select {
 
 .menu-btn span {
   display: block;
-  width: 38px;
-  height: 5px;
-  margin: 11px auto;
+  width: 51.35%;
+  height: 6.76%;
+  margin: 14.86% auto;
   border-radius: 999px;
   background: #f4f6fb;
 }
 
 .game-menu {
   position: absolute;
-  left: clamp(112px, 11.67dvw, 224px);
-  top: clamp(78px, 10.44dvh, 94px);
+  left: 11.6667%;
+  top: 10.4444%;
   z-index: 12;
   width: 164px;
   display: grid;
@@ -171,7 +175,7 @@ select {
 .info-panel {
   position: absolute;
   left: 50%;
-  top: 10px;
+  top: 1.1111%;
   z-index: 7;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -215,11 +219,11 @@ select {
 
 .power-meter {
   position: absolute;
-  left: clamp(48px, 6.41dvw, 123px);
-  top: clamp(260px, 40.78dvh, 367px);
+  left: 6.4063%;
+  top: 40.7778%;
   z-index: 7;
-  width: 46px;
-  height: 214px;
+  width: 2.3958%;
+  height: 23.7778%;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -235,6 +239,8 @@ select {
     linear-gradient(#e8e8ee, #e8e8ee) 10px 163px / 26px 5px no-repeat,
     linear-gradient(#e8e8ee, #e8e8ee) 0 209px / 46px 5px no-repeat;
   box-shadow: none;
+  touch-action: none;
+  cursor: ns-resize;
 }
 
 .power-meter input {
@@ -262,11 +268,12 @@ select {
 
 .reset-fab {
   position: absolute;
-  left: clamp(56px, 7.6dvw, 146px);
-  bottom: clamp(30px, 7.22dvh, 65px);
+  left: 7.6042%;
+  bottom: 7.2222%;
   z-index: 8;
-  width: 70px;
-  height: 70px;
+  width: 3.6458%;
+  aspect-ratio: 1;
+  height: auto;
   border: 0;
   border-radius: 50%;
   background: url("assets/taiq/reset.png") center / contain no-repeat;
@@ -277,25 +284,26 @@ select {
 
 .overlap-preview {
   position: absolute;
-  right: clamp(64px, 6.67dvw, 128px);
-  top: clamp(25px, 3.11dvh, 28px);
+  right: 6.6667%;
+  top: 3.1111%;
   z-index: 8;
-  width: 150px;
-  height: 82px;
+  width: 7.8125%;
+  height: 9.1111%;
 }
 
 .preview-ball {
   position: absolute;
-  top: 7px;
-  width: 70px;
-  height: 70px;
+  top: 8.5366%;
+  width: 46.6667%;
+  aspect-ratio: 1;
+  height: auto;
   border-radius: 50%;
   box-shadow: none;
   transition: left 150ms ease-out;
 }
 
 .object-ball {
-  left: 70px;
+  left: 46.6667%;
   z-index: 1;
   background: radial-gradient(circle at 34% 30%, #f0534b 0 18%, #d3221d 50%, #94100d 100%);
   box-shadow: inset -14px -16px 18px rgba(0,0,0,.25), inset 8px 8px 15px rgba(255,255,255,.26);
@@ -313,17 +321,20 @@ select {
 
 .right-actions {
   position: absolute;
-  right: clamp(52px, 4.84dvw, 93px);
-  top: clamp(338px, 44.78dvh, 403px);
+  right: 4.8438%;
+  top: 44.7778%;
   z-index: 8;
   display: grid;
-  gap: 43px;
+  gap: 4.7778dvh;
 }
 
 .cue-control-btn {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 5.2083dvw;
+  max-width: 100px;
+  min-width: 54px;
+  aspect-ratio: 1;
+  height: auto;
   border: 0;
   border-radius: 999px;
   background: radial-gradient(circle at 34% 30%, #fff, #e9e6d6 55%, #aba58d);
@@ -345,8 +356,11 @@ select {
 
 .play-fab {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 5.2083dvw;
+  max-width: 100px;
+  min-width: 54px;
+  aspect-ratio: 1;
+  height: auto;
   border: 0;
   border-radius: 999px;
   background: #07a77e;
@@ -359,20 +373,20 @@ select {
 .play-fab::before {
   content: "";
   position: absolute;
-  left: 39px;
-  top: 30px;
+  left: 38%;
+  top: 30%;
   width: 0;
   height: 0;
-  border-top: 20px solid transparent;
-  border-bottom: 20px solid transparent;
-  border-left: 30px solid #fff;
+  border-top: min(2.2222dvh, 20px) solid transparent;
+  border-bottom: min(2.2222dvh, 20px) solid transparent;
+  border-left: min(1.5625dvw, 30px) solid #fff;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.35));
 }
 
 .table-note {
   position: absolute;
   left: 50%;
-  bottom: 10px;
+  bottom: 1.1111%;
   z-index: 4;
   max-width: 520px;
   padding: 7px 12px;
@@ -383,6 +397,11 @@ select {
   text-align: center;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.info-panel,
+.table-note {
+  display: none;
 }
 
 .hidden-controls {
@@ -477,34 +496,9 @@ select {
 }
 
 @media (max-width: 1100px) {
-  .table-wrap {
-    padding: 92px 110px 18px 105px;
-  }
-
-  .table-viewport {
-    width: min(calc(100dvw - 215px), calc((100dvh - 110px) * 1.794805), 1100px);
-    min-width: 380px;
-  }
-
-  #tableCanvas {
-    width: 100%;
-  }
-
-  .menu-btn,
-  .power-meter,
-  .reset-fab {
-    left: 24px;
-  }
-
-  .game-menu {
-    left: 86px;
-    top: 80px;
-    width: 164px;
-  }
-
   .info-panel {
     left: 50%;
-    top: 10px;
+    top: 1.1111%;
     width: min(410px, calc(100dvw - 300px));
     min-width: 230px;
     padding: 7px 10px;
@@ -518,72 +512,5 @@ select {
   .info-panel span,
   .info-panel em {
     font-size: 10px;
-  }
-
-  .menu-btn {
-    top: 14px;
-    width: 60px;
-    height: 60px;
-  }
-
-  .menu-btn span {
-    width: 29px;
-    height: 5px;
-    margin: 6px auto;
-  }
-
-  .power-meter {
-    top: 50%;
-    width: 46px;
-    height: 214px;
-    transform: translateY(-50%);
-  }
-
-  .reset-fab {
-    bottom: 28px;
-    width: 62px;
-    height: 62px;
-  }
-
-  .overlap-preview {
-    right: 10px;
-    width: 130px;
-    height: 62px;
-    transform: none;
-    transform-origin: top right;
-  }
-
-  .preview-ball {
-    width: 58px;
-    height: 58px;
-  }
-
-  .object-ball {
-    left: 32px;
-  }
-
-  .object-ball::after {
-    width: 16px;
-    height: 16px;
-    font-size: 11px;
-  }
-
-  .right-actions {
-    right: 16px;
-    gap: 16px;
-  }
-
-  .cue-control-btn,
-  .play-fab {
-    width: 72px;
-    height: 72px;
-  }
-
-  .play-fab::before {
-    left: 29px;
-    top: 22px;
-    border-top-width: 14px;
-    border-bottom-width: 14px;
-    border-left-width: 22px;
   }
 }
