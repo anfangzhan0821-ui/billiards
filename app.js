@@ -40,7 +40,9 @@ const menuPhotoBtn = document.querySelector("#menuPhotoBtn");
 let pendingCue = { spin: "follow", side: 0, x: 0, y: 0 };
 
 const art = {
-  table: loadImage("assets/cocos2d/eightBall/eightBall_DeskImage.png"),
+  table: loadImage("assets/taiq/table.png"),
+  cueBall: loadImage("assets/taiq/cue_ball.png"),
+  targetBall: loadImage("assets/taiq/object_ball_1.png"),
   atlas: loadImage("assets/cocos2d/eightBall/EightBall.png"),
 };
 
@@ -71,39 +73,41 @@ const state = {
   animation: null,
   lastShotSetup: null,
   balls: {
-    cue: { x: 245, y: 250, color: "#f4f5ee", label: "", rollAngle: 0 },
-    target: { x: 560, y: 210, color: "#f0c247", label: "1", rollAngle: 0 },
-    blocker1: { x: 420, y: 250, color: "#d53f3f", label: "障" },
-    blocker2: { x: 510, y: 320, color: "#3359d6", label: "障" },
+    cue: { x: 528, y: 335, color: "#f4f5ee", label: "", rollAngle: 0 },
+    target: { x: 602, y: 335, color: "#f0c247", label: "1", rollAngle: 0 },
+    blocker1: { x: 660, y: 385, color: "#d53f3f", label: "障" },
+    blocker2: { x: 785, y: 455, color: "#3359d6", label: "障" },
   },
 };
 
 const table = {
-  x: 56,
-  y: 54,
-  w: 788,
-  h: 388,
-  ballR: 15,
-  railLeft: 66,
-  railRight: 840,
-  railTop: 51,
-  railBottom: 442,
+  x: 58.8159,
+  y: 42.1187,
+  w: 1265.0041,
+  h: 686.0003,
+  midX: 691.816,
+  midY: 385.119,
+  ballR: 19,
+  railLeft: 94.1014,
+  railRight: 1289.99,
+  railTop: 92.6187,
+  railBottom: 674.577,
 };
 
 const pockets = [
-  { x: 52, y: 40 },
-  { x: 450, y: 29 },
-  { x: 849, y: 40 },
-  { x: 52, y: 453 },
-  { x: 450, y: 464 },
-  { x: 849, y: 453 },
+  { x: 58.8159, y: 59.1187 },
+  { x: 691.816, y: 42.1187 },
+  { x: 1323.82, y: 59.1187 },
+  { x: 58.8159, y: 710.119 },
+  { x: 691.816, y: 728.119 },
+  { x: 1323.82, y: 710.119 },
 ];
 
 const drills = {
-  thin: { cue: [235, 300], target: [568, 206], pocket: 2 },
-  half: { cue: [270, 250], target: [580, 250], pocket: 2 },
-  thick: { cue: [280, 206], target: [590, 230], pocket: 2 },
-  long: { cue: [205, 360], target: [650, 150], pocket: 2 },
+  thin: { cue: [361, 462], target: [872, 317], pocket: 2 },
+  half: { cue: [415, 385], target: [891, 385], pocket: 2 },
+  thick: { cue: [430, 317], target: [906, 354], pocket: 2 },
+  long: { cue: [315, 554], target: [998, 231], pocket: 2 },
 };
 const drillOrder = ["thin", "half", "thick", "long"];
 const spinOrder = ["follow", "stun", "draw"];
@@ -388,15 +392,11 @@ function escapePath() {
 function drawTable() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const bg = ctx.createRadialGradient(450, 230, 70, 450, 250, 520);
-  bg.addColorStop(0, "#26345c");
-  bg.addColorStop(0.48, "#141a36");
-  bg.addColorStop(1, "#080b18");
-  ctx.fillStyle = bg;
+  ctx.fillStyle = "#252048";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (art.table.complete && art.table.naturalWidth) {
-    drawCoverImage(art.table, 8, 4, 884, 492);
+    ctx.drawImage(art.table, 0, 0, canvas.width, canvas.height);
   }
 
   if (!state.potted) drawSightLines();
@@ -651,9 +651,23 @@ function drawCircle(p, r, fill, stroke, dash = []) {
 }
 
 function drawBall(p, r, fill, cue = false, stroke = "rgba(0,0,0,.42)") {
+  const asset = cue ? art.cueBall : fill === state.balls.target.color ? art.targetBall : null;
   const frame = cue ? ballFrames.cue : fill === state.balls.target.color ? ballFrames.target : null;
-  const visualR = r * BALL_DRAW_SCALE / 2;
+  const visualR = r;
   drawBallContactShadow(p, visualR);
+  if (asset && asset.complete && asset.naturalWidth) {
+    const size = r * 2;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rollAngle || 0);
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(asset, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return;
+  }
+
   if (frame && art.atlas.complete && art.atlas.naturalWidth) {
     const size = r * BALL_DRAW_SCALE;
     ctx.save();
@@ -1157,10 +1171,10 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
     restoreShotSetup(state.lastShotSetup);
     tableNote.textContent = "已复位到上一杆击打前的位置。";
   } else {
-    Object.assign(state.balls.cue, { x: 245, y: 250, rollAngle: 0 });
-    Object.assign(state.balls.target, { x: 560, y: 210, rollAngle: 0 });
-    Object.assign(state.balls.blocker1, { x: 420, y: 250 });
-    Object.assign(state.balls.blocker2, { x: 510, y: 320 });
+    Object.assign(state.balls.cue, { x: 528, y: 335, rollAngle: 0 });
+    Object.assign(state.balls.target, { x: 602, y: 335, rollAngle: 0 });
+    Object.assign(state.balls.blocker1, { x: 660, y: 385 });
+    Object.assign(state.balls.blocker2, { x: 785, y: 455 });
     state.selectedPocket = 5;
     tableNote.textContent = "拖动白球或目标球，点击袋口切换目标袋。";
   }

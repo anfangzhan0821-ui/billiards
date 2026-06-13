@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  --bg: #101329;
+  --bg: #252048;
   --felt: #09b982;
   --felt-dark: #05745d;
   --wood: #b96d2b;
@@ -42,22 +42,19 @@ select {
   position: relative;
   width: 100%;
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 22px 178px 22px 310px;
-  background:
-    radial-gradient(circle at 52% 42%, rgba(36, 78, 126, .22), transparent 32%),
-    radial-gradient(circle at 50% 92%, rgba(0, 0, 0, .55), transparent 30%),
-    linear-gradient(#171a36, #0b0e22);
+  padding: 0;
+  background: #252048;
   touch-action: none;
 }
 
 .table-viewport {
-  position: relative;
-  width: min(calc(100dvw - 620px), calc((100dvh - 44px) * 1.64), 1180px);
-  min-width: 500px;
+  position: absolute;
+  left: clamp(150px, 14.01dvw, 269px);
+  top: clamp(82px, 12.33dvh, 111px);
+  width: min(71.98dvw, calc(85.56dvh * 1.794805), 1382px);
+  min-width: 520px;
   height: auto;
-  aspect-ratio: 9 / 5;
+  aspect-ratio: 1382 / 770;
   filter: drop-shadow(0 26px 32px rgba(0, 0, 0, .58));
 }
 
@@ -69,38 +66,37 @@ select {
 #tableCanvas {
   position: relative;
   height: auto;
-  aspect-ratio: 9 / 5;
+  aspect-ratio: 1382 / 770;
   opacity: 1;
   touch-action: none;
 }
 
 .menu-btn {
   position: absolute;
-  left: 148px;
-  top: 18px;
+  left: clamp(42px, 5.78dvw, 111px);
+  top: clamp(16px, 2.11dvh, 19px);
   z-index: 8;
-  width: 64px;
-  height: 64px;
-  border: 3px solid rgba(20, 32, 80, .75);
-  border-radius: 10px;
-  background: linear-gradient(#2894d6, #1b4fa8);
-  box-shadow: inset 0 2px 8px rgba(255,255,255,.32), 0 4px 10px rgba(0,0,0,.45);
+  width: 74px;
+  height: 74px;
+  border: 0;
+  border-radius: 5px;
+  background: #4567c7;
+  box-shadow: none;
 }
 
 .menu-btn span {
   display: block;
-  width: 34px;
-  height: 6px;
-  margin: 7px auto;
+  width: 38px;
+  height: 5px;
+  margin: 11px auto;
   border-radius: 999px;
-  background: #b7ecff;
-  box-shadow: 0 0 5px rgba(255,255,255,.5);
+  background: #f4f6fb;
 }
 
 .game-menu {
   position: absolute;
-  left: 224px;
-  top: 94px;
+  left: clamp(112px, 11.67dvw, 224px);
+  top: clamp(78px, 10.44dvh, 94px);
   z-index: 12;
   width: 164px;
   display: grid;
@@ -219,17 +215,26 @@ select {
 
 .power-meter {
   position: absolute;
-  left: 148px;
-  top: 50%;
+  left: clamp(48px, 6.41dvw, 123px);
+  top: clamp(260px, 40.78dvh, 367px);
   z-index: 7;
-  width: 70px;
-  height: 365px;
-  padding: 8px;
-  border: 5px solid #e9e5e0;
-  border-radius: 10px;
-  background: linear-gradient(90deg, #203418, #10150e);
-  box-shadow: inset 0 0 14px rgba(0,0,0,.7), 0 8px 18px rgba(0,0,0,.35);
-  transform: translateY(-50%);
+  width: 46px;
+  height: 214px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(#e8e8ee, #e8e8ee) 0 0 / 46px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 23px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 43px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 63px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 83px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 103px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 123px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 143px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 10px 163px / 26px 5px no-repeat,
+    linear-gradient(#e8e8ee, #e8e8ee) 0 209px / 46px 5px no-repeat;
+  box-shadow: none;
 }
 
 .power-meter input {
@@ -244,98 +249,81 @@ select {
 
 .power-fill {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
+  left: 12px;
+  right: 11px;
+  bottom: 5px;
   height: 60%;
-  border-radius: 4px;
+  border-radius: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(0,0,0,.11) 0 7px, transparent 7px 22px),
-    linear-gradient(#a6e65d, #5fb738);
-  box-shadow: inset 0 0 12px rgba(255,255,255,.22);
+    repeating-linear-gradient(0deg, transparent 0 14px, rgba(255,255,255,.38) 14px 19px),
+    linear-gradient(#d85c16, #d85c16);
+  box-shadow: none;
 }
 
 .reset-fab {
   position: absolute;
-  left: 138px;
-  bottom: 35px;
+  left: clamp(56px, 7.6dvw, 146px);
+  bottom: clamp(30px, 7.22dvh, 65px);
   z-index: 8;
-  width: 76px;
-  height: 76px;
+  width: 70px;
+  height: 70px;
   border: 0;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 35% 25%, #fff481, #ffb113 45%, #f07410 75%);
-  color: white;
-  font-size: 48px;
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 2px 4px rgba(0,0,0,.35);
-  box-shadow: 0 8px 18px rgba(0,0,0,.4), inset 0 2px 5px rgba(255,255,255,.35);
+  border-radius: 50%;
+  background: url("assets/taiq/reset.png") center / contain no-repeat;
+  color: transparent;
+  font-size: 0;
+  box-shadow: none;
 }
 
 .overlap-preview {
   position: absolute;
-  right: 44px;
-  top: 22px;
+  right: clamp(64px, 6.67dvw, 128px);
+  top: clamp(25px, 3.11dvh, 28px);
   z-index: 8;
   width: 150px;
-  height: 78px;
+  height: 82px;
 }
 
 .preview-ball {
   position: absolute;
-  top: 4px;
-  width: 66px;
-  height: 66px;
+  top: 7px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
-  box-shadow: inset -15px -18px 22px rgba(0,0,0,.32), inset 8px 8px 18px rgba(255,255,255,.5), 0 5px 9px rgba(0,0,0,.42);
+  box-shadow: none;
   transition: left 150ms ease-out;
 }
 
 .object-ball {
-  left: 42px;
+  left: 70px;
   z-index: 1;
-  background: radial-gradient(circle at 35% 30%, #fff7ad 0 15%, #f3bd1e 36%, #df9b00 62%, #8b5200 100%);
+  background: radial-gradient(circle at 34% 30%, #f0534b 0 18%, #d3221d 50%, #94100d 100%);
+  box-shadow: inset -14px -16px 18px rgba(0,0,0,.25), inset 8px 8px 15px rgba(255,255,255,.26);
 }
 
 .object-ball::after {
-  content: "1";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #f7f4e5;
-  color: #111;
-  font-size: 13px;
-  font-weight: 900;
-  transform: translate(-50%, -50%);
+  content: none;
 }
 
 .cue-ball {
-  left: 84px;
+  left: 0;
   z-index: 3;
-  background: radial-gradient(circle at 34% 30%, #fff, #e9e6d6 54%, #aea990);
+  background: url("assets/taiq/cue_ball_view.png") center / contain no-repeat;
 }
 
 .right-actions {
   position: absolute;
-  right: 58px;
-  top: 50%;
+  right: clamp(52px, 4.84dvw, 93px);
+  top: clamp(338px, 44.78dvh, 403px);
   z-index: 8;
   display: grid;
-  gap: 22px;
-  transform: translateY(-34%);
+  gap: 43px;
 }
 
 .cue-control-btn {
   position: relative;
-  width: 76px;
-  height: 76px;
+  width: 100px;
+  height: 100px;
   border: 0;
   border-radius: 999px;
   background: radial-gradient(circle at 34% 30%, #fff, #e9e6d6 55%, #aba58d);
@@ -356,16 +344,29 @@ select {
 }
 
 .play-fab {
-  width: 76px;
-  height: 76px;
+  position: relative;
+  width: 100px;
+  height: 100px;
   border: 0;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 25%, #99dc72, #578d35 58%, #294517);
-  color: white;
-  font-size: 20px;
+  background: #07a77e;
+  color: transparent;
+  font-size: 0;
   font-weight: 900;
-  text-shadow: 0 2px 3px rgba(0,0,0,.55);
   box-shadow: inset 0 5px 16px rgba(255,255,255,.35), 0 7px 15px rgba(0,0,0,.38);
+}
+
+.play-fab::before {
+  content: "";
+  position: absolute;
+  left: 39px;
+  top: 30px;
+  width: 0;
+  height: 0;
+  border-top: 20px solid transparent;
+  border-bottom: 20px solid transparent;
+  border-left: 30px solid #fff;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.35));
 }
 
 .table-note {
@@ -477,12 +478,11 @@ select {
 
 @media (max-width: 1100px) {
   .table-wrap {
-    padding-left: 105px;
-    padding-right: 82px;
+    padding: 92px 110px 18px 105px;
   }
 
   .table-viewport {
-    width: min(calc(100dvw - 210px), calc((100dvh - 44px) * 1.8), 1100px);
+    width: min(calc(100dvw - 215px), calc((100dvh - 110px) * 1.794805), 1100px);
     min-width: 380px;
   }
 
@@ -522,8 +522,8 @@ select {
 
   .menu-btn {
     top: 14px;
-    width: 54px;
-    height: 54px;
+    width: 60px;
+    height: 60px;
   }
 
   .menu-btn span {
@@ -533,14 +533,16 @@ select {
   }
 
   .power-meter {
-    width: 54px;
-    height: 285px;
+    top: 50%;
+    width: 46px;
+    height: 214px;
+    transform: translateY(-50%);
   }
 
   .reset-fab {
+    bottom: 28px;
     width: 62px;
     height: 62px;
-    font-size: 39px;
   }
 
   .overlap-preview {
@@ -552,8 +554,8 @@ select {
   }
 
   .preview-ball {
-    width: 54px;
-    height: 54px;
+    width: 58px;
+    height: 58px;
   }
 
   .object-ball {
@@ -573,11 +575,15 @@ select {
 
   .cue-control-btn,
   .play-fab {
-    width: 60px;
-    height: 60px;
+    width: 72px;
+    height: 72px;
   }
 
-  .play-fab {
-    font-size: 15px;
+  .play-fab::before {
+    left: 29px;
+    top: 22px;
+    border-top-width: 14px;
+    border-bottom-width: 14px;
+    border-left-width: 22px;
   }
 }

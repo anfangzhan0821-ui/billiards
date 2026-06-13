@@ -1,0 +1,23 @@
+<svg width="1382" height="770" viewBox="0 0 1382 770" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_17_97)">
+<rect width="1382" height="770" fill="white"/>
+<rect width="1382" height="770" rx="40" fill="white"/>
+<ellipse cx="1323.82" cy="710.119" rx="36.5" ry="37.5" fill="#191009"/>
+<ellipse cx="58.8159" cy="710.119" rx="36.5" ry="37.5" fill="#191009"/>
+<ellipse cx="1323.82" cy="59.1187" rx="36.5" ry="37.5" fill="#191009"/>
+<ellipse cx="58.8159" cy="59.1187" rx="36.5" ry="37.5" fill="#191009"/>
+<ellipse cx="691.816" cy="42.1187" rx="33.5" ry="30.5" fill="#180C07"/>
+<ellipse cx="691.816" cy="728.119" rx="33.5" ry="30.5" fill="#180C07"/>
+<path d="M671.77 66.5986L659.844 92.6187L113.445 92.6185L92.9888 72.1624" stroke="#FF0000"/>
+<path d="M712.297 66.0278L724.248 92.6184L1270.65 92.6182L1291.1 72.1621" stroke="#FF0000"/>
+<path d="M673.044 702.951L659.844 674.577L113.445 674.577L92.9888 695.033" stroke="#FF0000"/>
+<path d="M710.963 703.232L724.248 674.576L1270.65 674.576L1291.1 695.032" stroke="#FF0000"/>
+<path d="M71.6747 94.4243L94.1014 116.949V652.404L71.4478 675.057" stroke="#FF0000"/>
+<path d="M1312.42 94.4243L1289.99 116.949V652.404L1312.64 675.057" stroke="#FF0000"/>
+</g>
+<defs>
+<clipPath id="clip0_17_97">
+<rect width="1382" height="770" fill="white"/>
+</clipPath>
+</defs>
+</svg>

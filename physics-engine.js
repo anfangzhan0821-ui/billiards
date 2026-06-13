@@ -45,9 +45,9 @@
       right: table.railRight ?? table.x + table.w - radius,
       top: table.railTop ?? table.y + radius,
       bottom: table.railBottom ?? table.y + table.h - radius,
-      midX: table.x + table.w / 2,
-      midY: table.y + table.h / 2,
-      cornerOpen: radius * 4.2,
+      midX: table.midX ?? table.x + table.w / 2,
+      midY: table.midY ?? table.y + table.h / 2,
+      cornerOpen: radius * 3.85,
       sideOpen: radius * 2.65,
     };
   }
@@ -110,10 +110,10 @@
     const dist = len(v(p, pocket));
 
     if (isMiddlePocket) {
-      const alongRail = Math.abs(p.x - pocket.x) <= box.sideOpen * 1.1;
+      const alongRail = Math.abs(p.x - pocket.x) <= box.sideOpen * 0.9;
       const depthFromRail = onTop ? box.top - p.y : p.y - box.bottom;
-      const inMouth = depthFromRail >= -radius * 1.8 && depthFromRail <= radius * 2.8;
-      return movingIntoPocket && alongRail && inMouth && dist <= radius * 2.8;
+      const inMouth = depthFromRail >= -radius * 1.25 && depthFromRail <= radius * 2.2;
+      return movingIntoPocket && alongRail && inMouth && dist <= radius * 2.25;
     }
 
     const hDepth = onLeft ? box.left - p.x : p.x - box.right;
@@ -128,7 +128,7 @@
 
   function pocketHit(prev, p, pockets, radius, table, velocity) {
     if (!Array.isArray(pockets)) return null;
-    const threshold = radius * 1.7;
+    const threshold = radius * 1.18;
     for (let i = 0; i < pockets.length; i++) {
       if (distanceToSegment(pockets[i], prev, p) <= threshold || inPocketMouth(p, pockets[i], table, radius, velocity)) {
         return { index: i, point: pockets[i] };
